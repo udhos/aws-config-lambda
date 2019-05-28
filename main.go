@@ -7,6 +7,8 @@ import (
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
+
+	"github.com/aws/aws-sdk-go-v2/aws/endpoints"
 	"github.com/aws/aws-sdk-go-v2/aws/external"
 	"github.com/aws/aws-sdk-go-v2/service/configservice"
 )
@@ -24,6 +26,8 @@ func getConfig() *configservice.ConfigService {
 		log.Printf("getConfig: %v", err)
 		return nil
 	}
+
+	cfg.Region = endpoints.SaEast1RegionID
 
 	config := configservice.New(cfg)
 
