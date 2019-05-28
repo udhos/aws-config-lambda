@@ -1,33 +1,37 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
-	"context"
 
+	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 )
-
-type in struct {
-	str string
-}
 
 type out struct {
 	str string
 }
 
-func handler(c context.Context, event in) (out, error) {
+// https://github.com/aws/aws-lambda-go/blob/master/events/README_Config.md
+// https://github.com/aws/aws-lambda-go/blob/master/events/config.go
 
-	fmt.Printf("fmt: logging from handler: event: %v", event)
-	log.Printf("log: logging from handler: event: %v", event)
+func handler(ctx context.Context, configEvent events.ConfigEvent) (out, error) {
+
+	fmt.Printf("fmt: logging from handler: event: %v", configEvent)
+	log.Printf("log: logging from handler: event: %v", configEvent)
+
+	fmt.Printf("AWS Config rule: %s\n", configEvent.ConfigRuleName)
+	fmt.Printf("Invoking event JSON: %s\n", configEvent.InvokingEvent)
+	fmt.Printf("Event version: %s\n", configEvent.Version)
 
 	var err error
 
-	if event.str == "" {
-		err = fmt.Errorf("custom error: empty input string")
+	if configEvent.ConfigRuleName == "" {
+		err = fmt.Errorf("custom error: empty config rule name")
 	}
 
-	return out{"Hello ƛ! - " + event.str}, err
+	return out{"Hello lambda!"}, err
 }
 
 func main() {
