@@ -34,6 +34,9 @@ region=sa-east-1
 echo region=$region
 
 # create function
+#
+# handler: name of the executable binary file within the zip package
+
 aws lambda create-function \
     --region $region \
     --function-name FunctionConfigLambda \
@@ -41,3 +44,4 @@ aws lambda create-function \
     --runtime go1.x \
     --role "$ROLE_ARN" \
     --handler main
+
