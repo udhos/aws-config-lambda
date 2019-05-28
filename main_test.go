@@ -18,12 +18,12 @@ func TestHandler(t *testing.T) {
 	}{
 		{
 			request: events.ConfigEvent{ConfigRuleName: "non-empty"},
-			expect:  "Hello lambda!",
+			expect:  "ok",
 			err:     false,
 		},
 		{
 			request: events.ConfigEvent{},
-			expect:  "Hello lambda!",
+			expect:  "custom error: empty config rule name",
 			err:     true,
 		},
 	}
@@ -32,10 +32,10 @@ func TestHandler(t *testing.T) {
 		ctx := context.Background()
 		response, err := main.Handler(ctx, test.request)
 		if response.Str != test.expect {
-			t.Errorf("response expected=[%s] got=[%s]", test.expect, response.Str)
+			t.Errorf("response request=%v expected=[%s] got=[%s]", test.request, test.expect, response.Str)
 		}
 		if (err != nil) != test.err {
-			t.Errorf("error expected=%v got=%v", test.err, err)
+			t.Errorf("error request=%v expected=%v got=%v", test.request, test.err, err)
 		}
 	}
 

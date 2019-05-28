@@ -39,6 +39,9 @@ func getConfig() *configservice.ConfigService {
 
 func Handler(ctx context.Context, configEvent events.ConfigEvent) (Out, error) {
 
+	var err error
+	out := Out{"ok"}
+
 	count++
 
 	fmt.Printf("fmt: logging from handler: event: %v\n", configEvent)
@@ -55,13 +58,12 @@ func Handler(ctx context.Context, configEvent events.ConfigEvent) (Out, error) {
 		log.Printf("could not get config service")
 	}
 
-	var err error
-
 	if configEvent.ConfigRuleName == "" {
-		err = fmt.Errorf("custom error: empty config rule name")
+		out.Str = "custom error: empty config rule name"
+		err = fmt.Errorf(out.Str)
 	}
 
-	return Out{"Hello lambda!"}, err
+	return out, err
 }
 
 func main() {
