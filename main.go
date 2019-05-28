@@ -18,7 +18,7 @@ type Out struct {
 
 func Handler(ctx context.Context, configEvent events.ConfigEvent) (Out, error) {
 
-	fmt.Printf("fmt: logging from handler: event: %v", configEvent)
+	fmt.Printf("fmt: logging from handler: event: %v\n", configEvent)
 	log.Printf("log: logging from handler: event: %v", configEvent)
 
 	fmt.Printf("AWS Config rule: %s\n", configEvent.ConfigRuleName)
