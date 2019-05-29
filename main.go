@@ -35,6 +35,7 @@ func Handler(ctx context.Context, configEvent events.ConfigEvent) (out Out, err 
 
 	fmt.Printf("count=%d\n", count)
 	fmt.Printf("AWS Config rule: %s\n", configEvent.ConfigRuleName)
+	fmt.Printf("EventLeftScope=%v\n", configEvent.EventLeftScope)
 
 	config := getConfig()
 	if config == nil {
@@ -81,8 +82,9 @@ func Handler(ctx context.Context, configEvent events.ConfigEvent) (out Out, err 
 
 	// ComplianceType
 	// https://godoc.org/github.com/aws/aws-sdk-go-v2/service/configservice#ComplianceType
-	compliance := configservice.ComplianceTypeNotApplicable
+	compliance := configservice.ComplianceTypeCompliant
 
+	status := mapString(configItem, "configurationItemStatus")
 	resourceType := mapString(configItem, "resourceType")
 	resourceId := mapString(configItem, "resourceId")
 	timestamp := mapString(configItem, "configurationItemCaptureTime")
@@ -90,6 +92,10 @@ func Handler(ctx context.Context, configEvent events.ConfigEvent) (out Out, err 
 	if errTime != nil {
 		fmt.Printf("parse time: '%s': %v\n", timestamp, errTime)
 	}
+
+	fmt.Printf("configuration item status: %s\n", status)
+	fmt.Printf("configuration item type: %s\n", resourceType)
+	fmt.Printf("configuration item id: %s\n", resourceId)
 
 	eval := configservice.Evaluation{
 		ComplianceResourceType: &resourceType,
@@ -104,9 +110,9 @@ func Handler(ctx context.Context, configEvent events.ConfigEvent) (out Out, err 
 	req := config.PutEvaluationsRequest(&report)
 	resp, errPut := req.Send(context.TODO())
 	if errPut == nil {
-		fmt.Println(resp)
+		fmt.Println("PutEvaluations ok: ", resp)
 	} else {
-		fmt.Println(errPut)
+		fmt.Println("PutEvaluations error: ", errPut)
 	}
 
 	return
