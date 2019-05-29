@@ -2,6 +2,7 @@ package main_test
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -11,18 +12,26 @@ import (
 
 func TestHandler(t *testing.T) {
 
+	invokeEvent := map[string]string{}
+	invokeEvent["foo"] = "bar"
+	i, errJson := json.Marshal(invokeEvent)
+	if errJson != nil {
+		t.Errorf("internal json error: %v", errJson)
+	}
+	invoke := string(i)
+
 	tests := []struct {
 		request events.ConfigEvent
 		expect  string
 		err     bool
 	}{
 		{
-			request: events.ConfigEvent{ConfigRuleName: "non-empty"},
+			request: events.ConfigEvent{InvokingEvent: invoke, ConfigRuleName: "non-empty"},
 			expect:  "ok",
 			err:     false,
 		},
 		{
-			request: events.ConfigEvent{},
+			request: events.ConfigEvent{InvokingEvent: invoke},
 			expect:  "custom error: empty config rule name",
 			err:     true,
 		},
