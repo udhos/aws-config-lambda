@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -13,26 +14,15 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/configservice"
 )
 
+func main() {
+	lambda.Start(Handler)
+}
+
 type Out struct {
 	Str string
 }
 
 var count int
-
-func getConfig() *configservice.ConfigService {
-
-	cfg, err := external.LoadDefaultAWSConfig()
-	if err != nil {
-		fmt.Printf("getConfig: %v\n", err)
-		return nil
-	}
-
-	cfg.Region = endpoints.SaEast1RegionID
-
-	config := configservice.New(cfg)
-
-	return config
-}
 
 // https://github.com/aws/aws-lambda-go/blob/master/events/README_Config.md
 // https://github.com/aws/aws-lambda-go/blob/master/events/config.go
@@ -45,7 +35,6 @@ func Handler(ctx context.Context, configEvent events.ConfigEvent) (out Out, err 
 
 	fmt.Printf("count=%d\n", count)
 	fmt.Printf("AWS Config rule: %s\n", configEvent.ConfigRuleName)
-	//fmt.Printf("Invoking event JSON: %s\n", configEvent.InvokingEvent)
 
 	config := getConfig()
 	if config == nil {
@@ -70,15 +59,39 @@ func Handler(ctx context.Context, configEvent events.ConfigEvent) (out Out, err 
 		return
 	}
 
+	// invokingEvent:
+	//   configurationItem: map
+	//   messageType: ConfigurationItemChangeNotification
+
+	item, foundItem := invokingEvent["configurationItem"]
+	if !foundItem {
+		err = fmt.Errorf("configurationItem not found in InvokingEvent")
+		out.Str = err.Error()
+		fmt.Println(out.Str)
+		return
+	}
+
+	configItem, itemMap := item.(map[string]interface{})
+	if !itemMap {
+		err = fmt.Errorf("configurationItem not a map")
+		out.Str = err.Error()
+		fmt.Println(out.Str)
+		return
+	}
+
 	// ComplianceType
 	// https://godoc.org/github.com/aws/aws-sdk-go-v2/service/configservice#ComplianceType
 	compliance := configservice.ComplianceTypeNotApplicable
 
+	resourceType := mapString(configItem, "resourceType")
+	resourceId := mapString(configItem, "resourceId")
+	timestamp := mapTime(configItem, "configurationItemCaptureTime")
+
 	eval := configservice.Evaluation{
-		//ComplianceResourceType: configurationItem.resourceType,
-		//ComplianceResourceId: configurationItem.resourceId,
-		ComplianceType: compliance,
-		//OrderingTimestamp: configurationItem.configurationItemCaptureTime,
+		ComplianceResourceType: &resourceType,
+		ComplianceResourceId:   &resourceId,
+		ComplianceType:         compliance,
+		OrderingTimestamp:      &timestamp,
 	}
 	report := configservice.PutEvaluationsInput{
 		ResultToken: &configEvent.ResultToken,
@@ -95,6 +108,33 @@ func Handler(ctx context.Context, configEvent events.ConfigEvent) (out Out, err 
 	return
 }
 
-func main() {
-	lambda.Start(Handler)
+func mapString(m map[string]interface{}, key string) string {
+	v, ok := m[key]
+	if ok {
+		return v.(string)
+	}
+	return ""
+}
+
+func mapTime(m map[string]interface{}, key string) time.Time {
+	v, ok := m[key]
+	if ok {
+		return v.(time.Time)
+	}
+	return time.Time{}
+}
+
+func getConfig() *configservice.ConfigService {
+
+	cfg, err := external.LoadDefaultAWSConfig()
+	if err != nil {
+		fmt.Printf("getConfig: %v\n", err)
+		return nil
+	}
+
+	cfg.Region = endpoints.SaEast1RegionID
+
+	config := configservice.New(cfg)
+
+	return config
 }

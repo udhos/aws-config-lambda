@@ -12,8 +12,10 @@ import (
 
 func TestHandler(t *testing.T) {
 
-	invokeEvent := map[string]string{}
-	invokeEvent["foo"] = "bar"
+	item := map[string]string{}
+	item["foo"] = "bar"
+	invokeEvent := map[string]interface{}{}
+	invokeEvent["configurationItem"] = item
 	i, errJson := json.Marshal(invokeEvent)
 	if errJson != nil {
 		t.Errorf("internal json error: %v", errJson)
