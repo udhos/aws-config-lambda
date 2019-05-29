@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"runtime"
 	"time"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -22,6 +23,8 @@ type Out struct {
 	Str string
 }
 
+const version = "0.1"
+
 var count int
 
 // https://github.com/aws/aws-lambda-go/blob/master/events/README_Config.md
@@ -30,6 +33,8 @@ var count int
 func Handler(ctx context.Context, configEvent events.ConfigEvent) (out Out, err error) {
 
 	out = Out{"ok"}
+
+	fmt.Printf("version=%s runtime=%s GOMAXPROCS=%d OS=%s ARCH=%s\n", version, runtime.Version(), runtime.GOMAXPROCS(0), runtime.GOOS, runtime.GOARCH)
 
 	count++
 
@@ -129,7 +134,7 @@ func mapString(m map[string]interface{}, key string) string {
 	return ""
 }
 
-func getConfig() *configservice.ConfigService {
+func getConfig() *configservice.Client {
 
 	cfg, err := external.LoadDefaultAWSConfig()
 	if err != nil {
