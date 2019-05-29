@@ -85,13 +85,17 @@ func Handler(ctx context.Context, configEvent events.ConfigEvent) (out Out, err 
 
 	resourceType := mapString(configItem, "resourceType")
 	resourceId := mapString(configItem, "resourceId")
-	timestamp := mapTime(configItem, "configurationItemCaptureTime")
+	timestamp := mapString(configItem, "configurationItemCaptureTime")
+	t, errTime := time.Parse(time.RFC3339, timestamp)
+	if errTime != nil {
+		fmt.Printf("parse time: '%s': %v\n", timestamp, errTime)
+	}
 
 	eval := configservice.Evaluation{
 		ComplianceResourceType: &resourceType,
 		ComplianceResourceId:   &resourceId,
 		ComplianceType:         compliance,
-		OrderingTimestamp:      &timestamp,
+		OrderingTimestamp:      &t,
 	}
 	report := configservice.PutEvaluationsInput{
 		ResultToken: &configEvent.ResultToken,
@@ -109,19 +113,14 @@ func Handler(ctx context.Context, configEvent events.ConfigEvent) (out Out, err 
 }
 
 func mapString(m map[string]interface{}, key string) string {
-	v, ok := m[key]
-	if ok {
-		return v.(string)
+	v, found := m[key]
+	if found {
+		s, isStr := v.(string)
+		if isStr {
+			return s
+		}
 	}
 	return ""
-}
-
-func mapTime(m map[string]interface{}, key string) time.Time {
-	v, ok := m[key]
-	if ok {
-		return v.(time.Time)
-	}
-	return time.Time{}
 }
 
 func getConfig() *configservice.ConfigService {
