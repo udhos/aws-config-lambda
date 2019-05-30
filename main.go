@@ -127,7 +127,7 @@ func Handler(ctx context.Context, configEvent events.ConfigEvent) (out Out, err 
 
 	snapshot, errSnap := fetch(clientConf.s3, bucket, resourceId)
 	if errSnap != nil {
-		fmt.Printf("snapshot: %v\n", errSnap)
+		fmt.Printf("fetch: bucket=%s key=%s %v\n", bucket, resourceId, errSnap)
 		compliance = configservice.ComplianceTypeNonCompliant
 	}
 
