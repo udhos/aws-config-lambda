@@ -68,9 +68,11 @@ func Handler(ctx context.Context, configEvent events.ConfigEvent) (out Out, err 
 	}
 
 	clientConf := getConfig()
-	config := clientConf.config
-	if config == nil {
-		fmt.Printf("could not get config service\n")
+	if clientConf == nil {
+		err = fmt.Errorf("could not get aws client - aborting")
+		out.Str = err.Error()
+		fmt.Println(out.Str)
+		return
 	}
 
 	// InvokingEvent:
@@ -135,7 +137,7 @@ func Handler(ctx context.Context, configEvent events.ConfigEvent) (out Out, err 
 
 	// Send evaluation result
 
-	sendEval(config, configEvent.ResultToken, resourceType, resourceId, t, compliance)
+	sendEval(clientConf.config, configEvent.ResultToken, resourceType, resourceId, t, compliance)
 
 	return
 }
