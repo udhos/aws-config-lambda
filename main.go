@@ -4,15 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"runtime"
 	"time"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/endpoints"
 	"github.com/aws/aws-sdk-go-v2/aws/external"
 	"github.com/aws/aws-sdk-go-v2/service/configservice"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
 func main() {
@@ -43,6 +46,7 @@ func Handler(ctx context.Context, configEvent events.ConfigEvent) (out Out, err 
 	fmt.Printf("EventLeftScope=%v\n", configEvent.EventLeftScope)
 
 	var dumpConfigItem bool
+	var bucket, key string
 
 	if params := configEvent.RuleParameters; params != "" {
 		ruleParameters := map[string]string{}
@@ -58,10 +62,14 @@ func Handler(ctx context.Context, configEvent events.ConfigEvent) (out Out, err 
 					dumpConfigItem = true
 				}
 			}
+
+			bucket = ruleParameters["Bucket"]
+			key = ruleParameters["Key"]
 		}
 	}
 
-	config := getConfig()
+	clientConf := getConfig()
+	config := clientConf.config
 	if config == nil {
 		fmt.Printf("could not get config service\n")
 	}
@@ -98,12 +106,8 @@ func Handler(ctx context.Context, configEvent events.ConfigEvent) (out Out, err 
 	}
 
 	if dumpConfigItem {
-		logItem(configItem)
+		logItem("dump config item: ", configItem)
 	}
-
-	// ComplianceType
-	// https://godoc.org/github.com/aws/aws-sdk-go-v2/service/configservice#ComplianceType
-	compliance := configservice.ComplianceTypeCompliant
 
 	status := mapString(configItem, "configurationItemStatus")
 	resourceType := mapString(configItem, "resourceType")
@@ -117,6 +121,21 @@ func Handler(ctx context.Context, configEvent events.ConfigEvent) (out Out, err 
 	fmt.Printf("configuration item status: %s\n", status)
 	fmt.Printf("configuration item type: %s\n", resourceType)
 	fmt.Printf("configuration item id: %s\n", resourceId)
+
+	// ComplianceType
+	// https://godoc.org/github.com/aws/aws-sdk-go-v2/service/configservice#ComplianceType
+	compliance := configservice.ComplianceTypeCompliant
+
+	snapshot, errSnap := fetch(clientConf.s3, bucket, key, resourceId)
+	if errSnap != nil {
+		fmt.Printf("snapshot: %v\n", errSnap)
+		compliance = configservice.ComplianceTypeInsufficientData
+	}
+
+	if dumpConfigItem {
+		logItem("dump config item snapshot: ", snapshot)
+	}
+
 	fmt.Printf("configuration item compliance: %s\n", compliance)
 
 	eval := configservice.Evaluation{
@@ -140,9 +159,35 @@ func Handler(ctx context.Context, configEvent events.ConfigEvent) (out Out, err 
 	return
 }
 
-func logItem(configItem map[string]interface{}) {
+func fetch(client *s3.Client, bucket, key string, resourceId string) (map[string]interface{}, error) {
+
+	params := &s3.GetObjectInput{
+		Bucket: aws.String(bucket), // Required
+		Key:    aws.String(key),    // Required
+	}
+
+	req := client.GetObjectRequest(params)
+	resp, errSend := req.Send(context.TODO())
+	if errSend != nil {
+		return nil, errSend
+	}
+
+	buf, errRead := ioutil.ReadAll(resp.Body)
+	if errRead != nil {
+		return nil, errRead
+	}
+
+	item := map[string]interface{}{}
+	if errJson := json.Unmarshal(buf, &item); errJson != nil {
+		return nil, errJson
+	}
+
+	return item, nil
+}
+
+func logItem(prefix string, configItem map[string]interface{}) {
 	for k, v := range configItem {
-		fmt.Printf("dump config item: %s = %v\n", k, v)
+		fmt.Printf("%s %s = %v\n", prefix, k, v)
 	}
 }
 
@@ -157,7 +202,13 @@ func mapString(m map[string]interface{}, key string) string {
 	return ""
 }
 
-func getConfig() *configservice.Client {
+type conf struct {
+	cfg    aws.Config
+	config *configservice.Client
+	s3     *s3.Client
+}
+
+func getConfig() *conf {
 
 	cfg, err := external.LoadDefaultAWSConfig()
 	if err != nil {
@@ -167,7 +218,11 @@ func getConfig() *configservice.Client {
 
 	cfg.Region = endpoints.SaEast1RegionID
 
-	config := configservice.New(cfg)
+	c := conf{
+		cfg:    cfg,
+		config: configservice.New(cfg),
+		s3:     s3.New(cfg),
+	}
 
-	return config
+	return &c
 }
