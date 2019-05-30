@@ -96,6 +96,8 @@ func Handler(ctx context.Context, configEvent events.ConfigEvent) (out Out, err 
 		return
 	}
 
+	// Decode configuration item
+
 	configItem, itemMap := item.(map[string]interface{})
 	if !itemMap {
 		err = fmt.Errorf("configurationItem not a map")
@@ -123,17 +125,41 @@ func Handler(ctx context.Context, configEvent events.ConfigEvent) (out Out, err 
 
 	// ComplianceType
 	// https://godoc.org/github.com/aws/aws-sdk-go-v2/service/configservice#ComplianceType
-	compliance := configservice.ComplianceTypeCompliant
+	compliance := configservice.ComplianceTypeNotApplicable
 
-	snapshot, errSnap := fetch(clientConf.s3, bucket, resourceId)
-	if errSnap != nil {
-		fmt.Printf("fetch: bucket=%s key=%s %v\n", bucket, resourceId, errSnap)
-		compliance = configservice.ComplianceTypeNonCompliant
+	isApplicable := (status == "OK" || status == "ResourceDiscovered") && !configEvent.EventLeftScope
+
+	if isApplicable {
+		compliance = eval(clientConf.s3, configItem, bucket, resourceId, dumpConfigItem)
 	}
 
-	if dumpConfigItem {
-		logItem("dump config item snapshot: ", snapshot)
+	// Send evaluation result
+
+	sendEval(config, configEvent.ResultToken, resourceType, resourceId, t, compliance)
+
+	return
+}
+
+// eval: compare item against target
+func eval(s3Client *s3.Client, configItem map[string]interface{}, bucket, resourceId string, dump bool) configservice.ComplianceType {
+	// Fetch target configuration
+
+	target, errTarget := fetch(s3Client, bucket, resourceId)
+	if errTarget != nil {
+		fmt.Printf("fetch: bucket=%s key=%s %v\n", bucket, resourceId, errTarget)
+		return configservice.ComplianceTypeNonCompliant // target not found
 	}
+
+	if dump {
+		logItem("dump config item target: ", target)
+	}
+
+	// FIXME WRITEME: Evaluate item against target
+
+	return configservice.ComplianceTypeCompliant
+}
+
+func sendEval(config *configservice.Client, resultToken, resourceType, resourceId string, timestamp time.Time, compliance configservice.ComplianceType) {
 
 	fmt.Printf("configuration item compliance: %s\n", compliance)
 
@@ -141,10 +167,10 @@ func Handler(ctx context.Context, configEvent events.ConfigEvent) (out Out, err 
 		ComplianceResourceType: &resourceType,
 		ComplianceResourceId:   &resourceId,
 		ComplianceType:         compliance,
-		OrderingTimestamp:      &t,
+		OrderingTimestamp:      &timestamp,
 	}
 	report := configservice.PutEvaluationsInput{
-		ResultToken: &configEvent.ResultToken,
+		ResultToken: &resultToken,
 		Evaluations: []configservice.Evaluation{eval},
 	}
 	req := config.PutEvaluationsRequest(&report)
@@ -154,8 +180,6 @@ func Handler(ctx context.Context, configEvent events.ConfigEvent) (out Out, err 
 	} else {
 		fmt.Println("PutEvaluations error: ", errPut)
 	}
-
-	return
 }
 
 func fetch(client *s3.Client, bucket, resourceId string) (map[string]interface{}, error) {
