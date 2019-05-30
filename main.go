@@ -98,9 +98,7 @@ func Handler(ctx context.Context, configEvent events.ConfigEvent) (out Out, err 
 	}
 
 	if dumpConfigItem {
-		for k, v := range configItem {
-			fmt.Printf("dump config item: %s = %v\n", k, v)
-		}
+		logItem(configItem)
 	}
 
 	// ComplianceType
@@ -140,6 +138,12 @@ func Handler(ctx context.Context, configEvent events.ConfigEvent) (out Out, err 
 	}
 
 	return
+}
+
+func logItem(configItem map[string]interface{}) {
+	for k, v := range configItem {
+		fmt.Printf("dump config item: %s = %v\n", k, v)
+	}
 }
 
 func mapString(m map[string]interface{}, key string) string {
