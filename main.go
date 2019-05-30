@@ -46,7 +46,7 @@ func Handler(ctx context.Context, configEvent events.ConfigEvent) (out Out, err 
 	fmt.Printf("EventLeftScope=%v\n", configEvent.EventLeftScope)
 
 	var dumpConfigItem bool
-	var bucket, key string
+	var bucket string
 
 	if params := configEvent.RuleParameters; params != "" {
 		ruleParameters := map[string]string{}
@@ -64,7 +64,6 @@ func Handler(ctx context.Context, configEvent events.ConfigEvent) (out Out, err 
 			}
 
 			bucket = ruleParameters["Bucket"]
-			key = ruleParameters["Key"]
 		}
 	}
 
@@ -126,7 +125,7 @@ func Handler(ctx context.Context, configEvent events.ConfigEvent) (out Out, err 
 	// https://godoc.org/github.com/aws/aws-sdk-go-v2/service/configservice#ComplianceType
 	compliance := configservice.ComplianceTypeCompliant
 
-	snapshot, errSnap := fetch(clientConf.s3, bucket, key, resourceId)
+	snapshot, errSnap := fetch(clientConf.s3, bucket, resourceId)
 	if errSnap != nil {
 		fmt.Printf("snapshot: %v\n", errSnap)
 		compliance = configservice.ComplianceTypeInsufficientData
@@ -159,11 +158,11 @@ func Handler(ctx context.Context, configEvent events.ConfigEvent) (out Out, err 
 	return
 }
 
-func fetch(client *s3.Client, bucket, key string, resourceId string) (map[string]interface{}, error) {
+func fetch(client *s3.Client, bucket, resourceId string) (map[string]interface{}, error) {
 
 	params := &s3.GetObjectInput{
-		Bucket: aws.String(bucket), // Required
-		Key:    aws.String(key),    // Required
+		Bucket: aws.String(bucket),     // Required
+		Key:    aws.String(resourceId), // Required
 	}
 
 	req := client.GetObjectRequest(params)
