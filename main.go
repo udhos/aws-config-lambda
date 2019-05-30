@@ -42,23 +42,35 @@ func Handler(ctx context.Context, configEvent events.ConfigEvent) (out Out, err 
 	fmt.Printf("AWS Config rule: %s\n", configEvent.ConfigRuleName)
 	fmt.Printf("EventLeftScope=%v\n", configEvent.EventLeftScope)
 
+	var dumpConfigItem bool
+
+	if params := configEvent.RuleParameters; params != "" {
+		ruleParameters := map[string]string{}
+		if errParam := json.Unmarshal([]byte(params), &ruleParameters); errParam != nil {
+			fmt.Printf("RuleParameters: %v\n", errParam)
+		} else {
+			for k, v := range ruleParameters {
+				fmt.Printf("RuleParameters: %s=%s\n", k, v)
+			}
+
+			if dump, found := ruleParameters["Dump"]; found {
+				if dump == "ConfigItem" {
+					dumpConfigItem = true
+				}
+			}
+		}
+	}
+
 	config := getConfig()
 	if config == nil {
 		fmt.Printf("could not get config service\n")
-	}
-
-	if configEvent.ConfigRuleName == "" {
-		out.Str = "custom error: empty config rule name"
-		err = fmt.Errorf(out.Str)
-		return
 	}
 
 	// InvokingEvent:
 	// If the event is published in response to a resource configuration change, this value contains a JSON configuration item
 	// https://github.com/aws/aws-lambda-go/blob/master/events/config.go
 	invokingEvent := map[string]interface{}{}
-	errJson := json.Unmarshal([]byte(configEvent.InvokingEvent), &invokingEvent)
-	if errJson != nil {
+	if errJson := json.Unmarshal([]byte(configEvent.InvokingEvent), &invokingEvent); errJson != nil {
 		err = fmt.Errorf("InvokingEvent: %v", errJson)
 		out.Str = err.Error()
 		fmt.Println(out.Str)
@@ -85,6 +97,12 @@ func Handler(ctx context.Context, configEvent events.ConfigEvent) (out Out, err 
 		return
 	}
 
+	if dumpConfigItem {
+		for k, v := range configItem {
+			fmt.Printf("dump config item: %s = %v\n", k, v)
+		}
+	}
+
 	// ComplianceType
 	// https://godoc.org/github.com/aws/aws-sdk-go-v2/service/configservice#ComplianceType
 	compliance := configservice.ComplianceTypeCompliant
@@ -101,6 +119,7 @@ func Handler(ctx context.Context, configEvent events.ConfigEvent) (out Out, err 
 	fmt.Printf("configuration item status: %s\n", status)
 	fmt.Printf("configuration item type: %s\n", resourceType)
 	fmt.Printf("configuration item id: %s\n", resourceId)
+	fmt.Printf("configuration item compliance: %s\n", compliance)
 
 	eval := configservice.Evaluation{
 		ComplianceResourceType: &resourceType,

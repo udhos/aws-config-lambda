@@ -34,8 +34,8 @@ func TestHandler(t *testing.T) {
 		},
 		{
 			request: events.ConfigEvent{InvokingEvent: invoke},
-			expect:  "custom error: empty config rule name",
-			err:     true,
+			expect:  "ok",
+			err:     false,
 		},
 	}
 
