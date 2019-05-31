@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	//"reflect"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -48,6 +48,7 @@ func Handler(ctx context.Context, configEvent events.ConfigEvent) (out Out, err 
 
 	var dumpConfigItem bool
 	var bucket string
+	restrictResourceTypes := map[string]struct{}{}
 
 	if params := configEvent.RuleParameters; params != "" {
 		ruleParameters := map[string]string{}
@@ -61,6 +62,12 @@ func Handler(ctx context.Context, configEvent events.ConfigEvent) (out Out, err 
 			if dump, found := ruleParameters["Dump"]; found {
 				if dump == "ConfigItem" {
 					dumpConfigItem = true
+				}
+			}
+
+			if types, found := ruleParameters["ResourceTypes"]; found {
+				for _, s := range strings.Split(types, ",") {
+					restrictResourceTypes[s] = struct{}{}
 				}
 			}
 
@@ -131,6 +138,13 @@ func Handler(ctx context.Context, configEvent events.ConfigEvent) (out Out, err 
 	compliance := configservice.ComplianceTypeNotApplicable
 
 	isApplicable := (status == "OK" || status == "ResourceDiscovered") && !configEvent.EventLeftScope
+
+	if isApplicable && len(restrictResourceTypes) > 0 {
+		if _, found := restrictResourceTypes[resourceType]; !found {
+			fmt.Printf("resourceType=%s missing from parameter ResourceTypes\n", resourceType)
+			isApplicable = false
+		}
+	}
 
 	if isApplicable {
 		compliance = eval(clientConf.s3, configItem, bucket, resourceId, dumpConfigItem)
