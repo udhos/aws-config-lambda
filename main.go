@@ -144,6 +144,7 @@ func Handler(ctx context.Context, configEvent events.ConfigEvent) (out Out, err 
 
 // eval: compare item against target
 func eval(s3Client *s3.Client, configItem map[string]interface{}, bucket, resourceId string, dump bool) configservice.ComplianceType {
+
 	// Fetch target configuration
 
 	target, errTarget := fetch(s3Client, bucket, resourceId)
@@ -156,9 +157,56 @@ func eval(s3Client *s3.Client, configItem map[string]interface{}, bucket, resour
 		logItem("dump config item target: ", target)
 	}
 
-	// FIXME WRITEME: Evaluate item against target
+	if offense := findOffense("", configItem, target); offense {
+		return configservice.ComplianceTypeNonCompliant
+	}
 
 	return configservice.ComplianceTypeCompliant
+}
+
+func findOffense(path string, item, target map[string]interface{}) bool {
+
+	for tk, tv := range target {
+		iv, foundKey := item[tk]
+		if !foundKey {
+			fmt.Printf("path=[%s] missing key=%s on item", path, tk)
+			return true
+		}
+		tvs, tvStr := tv.(string)
+		if !tvStr {
+			fmt.Printf("path=[%s] target non-string value: %v", path, tv)
+			return true
+		}
+		ivs, ivStr := iv.(string)
+		if !ivStr {
+			fmt.Printf("path=[%s] item non-string value: %v", path, iv)
+			return true
+		}
+		if !isJSON(tvs) {
+			if tvs != ivs {
+				fmt.Printf("path=[%s] key=%s value mismatch: targetValue=%s itemValue=%s", path, tk, tvs, ivs)
+				return true
+			}
+		}
+		tm := map[string]interface{}{}
+		if errTm := json.Unmarshal([]byte(tvs), &tm); errTm != nil {
+			fmt.Printf("path=[%s] key=%s target json error: %v", path, tk, errTm)
+			return true
+		}
+		im := map[string]interface{}{}
+		if errIm := json.Unmarshal([]byte(ivs), &im); errIm != nil {
+			fmt.Printf("path=[%s] key=%s item json error: %v", path, tk, errIm)
+			return true
+		}
+		return findOffense(path+"."+tk, im, tm)
+	}
+
+	return false
+}
+
+func isJSON(str string) bool {
+	var raw json.RawMessage
+	return json.Unmarshal([]byte(str), &raw) == nil
 }
 
 func sendEval(config *configservice.Client, resultToken, resourceType, resourceId string, timestamp time.Time, compliance configservice.ComplianceType) {
