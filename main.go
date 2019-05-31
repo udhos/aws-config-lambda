@@ -273,7 +273,7 @@ func timeAndUnix(path string, s1, s2 string) bool {
 		return false
 	}
 	t2 := time.Unix(int64(f), 0)
-	result := t1 == t2
+	result := t1.Equal(t2)
 	fmt.Printf("path=[%s] timeAndUnix: %s x %s: %v x %v: %v\n", path, s1, s2, t1, t2, result)
 	return result
 
