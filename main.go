@@ -172,14 +172,14 @@ func eval(s3Client *s3.Client, configItem map[string]interface{}, bucket, resour
 		logItem("dump config item target: ", target)
 	}
 
-	if offense := findOffense("", configItem, target); offense {
+	if offense := findOffenseMap("", configItem, target); offense {
 		return configservice.ComplianceTypeNonCompliant
 	}
 
 	return configservice.ComplianceTypeCompliant
 }
 
-func findOffense(path string, item, target map[string]interface{}) bool {
+func findOffenseMap(path string, item, target map[string]interface{}) bool {
 
 	for tk, tv := range target {
 		iv, foundKey := item[tk]
@@ -187,8 +187,8 @@ func findOffense(path string, item, target map[string]interface{}) bool {
 			fmt.Printf("path=[%s] key=%s missing key on item\n", path, tk)
 			return true
 		}
-		//checkMap("target", tk, tv)
-		//checkMap("item", tk, iv)
+
+		// map
 		tvm, tvMap := tv.(map[string]interface{})
 		if tvMap {
 			ivm, ivMap := iv.(map[string]interface{})
@@ -196,25 +196,85 @@ func findOffense(path string, item, target map[string]interface{}) bool {
 				fmt.Printf("path=[%s] key=%s item non-map value: %v\n", path, tk, iv)
 				return true
 			}
-			return findOffense(path+"."+tk, ivm, tvm)
+			return findOffenseMap(path+"."+tk, ivm, tvm)
 		}
-		tvs, errTv := scalarString(tv)
-		if errTv != nil {
-			fmt.Printf("path=[%s] key=%s target value: %v\n", path, tk, errTv)
-			return true
+
+		// slice
+		tvSlice, tvIsSlice := tv.([]interface{})
+		if tvIsSlice {
+			ivSlice, ivIsSlice := iv.([]interface{})
+			if !ivIsSlice {
+				fmt.Printf("path=[%s] key=%s item non-slice value: %v\n", path, tk, iv)
+				return true
+			}
+			return findOffenseSlice(path, tk, ivSlice, tvSlice)
 		}
-		ivs, errIv := scalarString(iv)
-		if errIv != nil {
-			fmt.Printf("path=[%s] key=%s item value: %v\n", path, tk, errIv)
-			return true
-		}
-		if tvs != ivs {
-			fmt.Printf("path=[%s] key=%s value mismatch: targetValue=%s itemValue=%s\n", path, tk, tvs, ivs)
+
+		// scalar
+		if offense := findOffenseScalar(path, tk, iv, tv); offense {
 			return true
 		}
 	}
 
 	return false
+}
+
+func findOffenseScalar(path, key string, item, target interface{}) bool {
+	tvs, errTv := scalarString(target)
+	if errTv != nil {
+		fmt.Printf("path=[%s] key=%s target value: %v\n", path, key, errTv)
+		return true
+	}
+	ivs, errIv := scalarString(item)
+	if errIv != nil {
+		fmt.Printf("path=[%s] key=%s item value: %v\n", path, key, errIv)
+		return true
+	}
+	if tvs != ivs {
+		fmt.Printf("path=[%s] key=%s value mismatch: targetValue=%s itemValue=%s\n", path, key, tvs, ivs)
+		return true
+	}
+
+	return false
+}
+
+func findOffenseSlice(path, key string, item, target []interface{}) bool {
+	if len(item) != len(target) {
+		fmt.Printf("path=[%s] key=%s slice size mismatch: target=%d item=%d\n", path, key, len(target), len(item))
+		return true
+	}
+	for i, t := range target {
+		it := item[i]
+		offense := findOffense(path+"."+fmt.Sprint(i), it, t)
+		if offense {
+			return true
+		}
+	}
+	return false
+}
+
+func findOffense(path string, item, target interface{}) bool {
+	tm, tMap := target.(map[string]interface{})
+	if tMap {
+		im, iMap := item.(map[string]interface{})
+		if !iMap {
+			fmt.Printf("path=[%s] target is map, item is not\n", path)
+			return true
+		}
+		return findOffenseMap(path, im, tm)
+	}
+
+	ts, tSlice := target.([]interface{})
+	if tSlice {
+		is, iSlice := item.([]interface{})
+		if !iSlice {
+			fmt.Printf("path=[%s] target is slice, item is not\n", path)
+			return true
+		}
+		return findOffenseSlice(path, "", is, ts)
+	}
+
+	return findOffenseScalar(path, "", item, target)
 }
 
 func scalarString(v interface{}) (string, error) {
