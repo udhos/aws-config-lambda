@@ -188,6 +188,8 @@ func findOffenseMap(path string, item, target map[string]interface{}) bool {
 			return true
 		}
 
+		child := path + "." + tk
+
 		// map
 		tvm, tvMap := tv.(map[string]interface{})
 		if tvMap {
@@ -196,7 +198,7 @@ func findOffenseMap(path string, item, target map[string]interface{}) bool {
 				fmt.Printf("path=[%s] key=%s item non-map value: %v\n", path, tk, iv)
 				return true
 			}
-			return findOffenseMap(path+"."+tk, ivm, tvm)
+			return findOffenseMap(child, ivm, tvm)
 		}
 
 		// slice
@@ -207,11 +209,11 @@ func findOffenseMap(path string, item, target map[string]interface{}) bool {
 				fmt.Printf("path=[%s] key=%s item non-slice value: %v\n", path, tk, iv)
 				return true
 			}
-			return findOffenseSlice(path, tk, ivSlice, tvSlice)
+			return findOffenseSlice(child, ivSlice, tvSlice)
 		}
 
 		// scalar
-		if offense := findOffenseScalar(path, tk, iv, tv); offense {
+		if offense := findOffenseScalar(child, iv, tv); offense {
 			return true
 		}
 	}
@@ -219,33 +221,34 @@ func findOffenseMap(path string, item, target map[string]interface{}) bool {
 	return false
 }
 
-func findOffenseScalar(path, key string, item, target interface{}) bool {
+func findOffenseScalar(path string, item, target interface{}) bool {
 	tvs, errTv := scalarString(target)
 	if errTv != nil {
-		fmt.Printf("path=[%s] key=%s target value: %v\n", path, key, errTv)
+		fmt.Printf("path=[%s] target value: %v\n", path, errTv)
 		return true
 	}
 	ivs, errIv := scalarString(item)
 	if errIv != nil {
-		fmt.Printf("path=[%s] key=%s item value: %v\n", path, key, errIv)
+		fmt.Printf("path=[%s] item value: %v\n", path, errIv)
 		return true
 	}
 	if tvs != ivs {
-		fmt.Printf("path=[%s] key=%s value mismatch: targetValue=%s itemValue=%s\n", path, key, tvs, ivs)
+		fmt.Printf("path=[%s] value mismatch: targetValue=%s itemValue=%s\n", path, tvs, ivs)
 		return true
 	}
 
 	return false
 }
 
-func findOffenseSlice(path, key string, item, target []interface{}) bool {
+func findOffenseSlice(path string, item, target []interface{}) bool {
 	if len(item) != len(target) {
-		fmt.Printf("path=[%s] key=%s slice size mismatch: target=%d item=%d\n", path, key, len(target), len(item))
+		fmt.Printf("path=[%s] slice size mismatch: target=%d item=%d\n", path, len(target), len(item))
 		return true
 	}
 	for i, t := range target {
 		it := item[i]
-		offense := findOffense(path+"."+fmt.Sprint(i), it, t)
+		child := path + "." + fmt.Sprint(i)
+		offense := findOffense(child, it, t)
 		if offense {
 			return true
 		}
@@ -271,10 +274,10 @@ func findOffense(path string, item, target interface{}) bool {
 			fmt.Printf("path=[%s] target is slice, item is not\n", path)
 			return true
 		}
-		return findOffenseSlice(path, "", is, ts)
+		return findOffenseSlice(path, is, ts)
 	}
 
-	return findOffenseScalar(path, "", item, target)
+	return findOffenseScalar(path, item, target)
 }
 
 func scalarString(v interface{}) (string, error) {
