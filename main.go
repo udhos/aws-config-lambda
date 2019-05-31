@@ -184,7 +184,7 @@ func findOffense(path string, item, target map[string]interface{}) bool {
 	for tk, tv := range target {
 		iv, foundKey := item[tk]
 		if !foundKey {
-			fmt.Printf("path=[%s] key=%s missing key on item", path, tk)
+			fmt.Printf("path=[%s] key=%s missing key on item\n", path, tk)
 			return true
 		}
 		//checkMap("target", tk, tv)
@@ -193,23 +193,27 @@ func findOffense(path string, item, target map[string]interface{}) bool {
 		if tvMap {
 			ivm, ivMap := iv.(map[string]interface{})
 			if !ivMap {
-				fmt.Printf("path=[%s] key=%s item non-map value: %v", path, tk, iv)
+				fmt.Printf("path=[%s] key=%s item non-map value: %v\n", path, tk, iv)
 				return true
 			}
 			return findOffense(path+"."+tk, ivm, tvm)
 		}
 		tvs, tvStr := tv.(string)
 		if !tvStr {
-			fmt.Printf("path=[%s] key=%s target non-string value: %v", path, tk, tv)
+			fmt.Printf("path=[%s] key=%s target non-string value: %v\n", path, tk, tv)
 			return true
 		}
 		ivs, ivStr := iv.(string)
 		if !ivStr {
-			fmt.Printf("path=[%s] key=%s item non-string value: %v (but target is string)", path, tk, iv)
-			return true
+			ivf, ivFloat := iv.(float32)
+			if !ivFloat {
+				fmt.Printf("path=[%s] key=%s item non-string/non-float32 value: %v (but target is string)\n", path, tk, iv)
+				return true
+			}
+			ivs = fmt.Sprint(ivf)
 		}
 		if tvs != ivs {
-			fmt.Printf("path=[%s] key=%s value mismatch: targetValue=%s itemValue=%s", path, tk, tvs, ivs)
+			fmt.Printf("path=[%s] key=%s value mismatch: targetValue=%s itemValue=%s\n", path, tk, tvs, ivs)
 			return true
 		}
 	}

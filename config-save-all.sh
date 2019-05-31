@@ -25,6 +25,6 @@ bucket=$1
 ./ec2-list-by-tag.sh | while read i; do
 	msg resource_id: $i
 	./config-ec2-get.sh $i
-	echo ./s3-upload.sh $i $bucket
+	./s3-upload.sh $i $bucket
 done
 
