@@ -27,6 +27,7 @@ exclude() {
 .arn
 .configurationItemCaptureTime
 .accountId
+.configurationStateId
 __EOF__
 }
 

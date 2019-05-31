@@ -232,7 +232,10 @@ func findOffenseScalar(path string, item, target interface{}) (bool, string) {
 		return true, fmt.Sprintf("path=[%s] item value: %v", path, errIv)
 	}
 	if tvs != ivs {
-		if matchTime(tvs, ivs) {
+		if matchNumber(path, tvs, ivs) {
+			return false, ""
+		}
+		if matchTime(path, tvs, ivs) {
 			return false, ""
 		}
 		return true, fmt.Sprintf("path=[%s] value mismatch: targetValue=%s itemValue=%s", path, tvs, ivs)
@@ -241,25 +244,37 @@ func findOffenseScalar(path string, item, target interface{}) (bool, string) {
 	return false, ""
 }
 
-func matchTime(s1, s2 string) bool {
-	return timeAndUnix(s1, s2) || timeAndUnix(s2, s1)
+func matchNumber(path string, s1, s2 string) bool {
+	f1, errFloat1 := strconv.ParseFloat(s1, 64)
+	if errFloat1 != nil {
+		return false
+	}
+	f2, errFloat2 := strconv.ParseFloat(s2, 64)
+	if errFloat2 != nil {
+		return false
+	}
+	return f1 == f2
 }
 
-func timeAndUnix(s1, s2 string) bool {
-	fmt.Printf("timeAndUnix: %s x %s\n", s1, s2)
+func matchTime(path string, s1, s2 string) bool {
+	return timeAndUnix(path, s1, s2) || timeAndUnix(path, s2, s1)
+}
+
+func timeAndUnix(path string, s1, s2 string) bool {
+	fmt.Printf("path=[%s] timeAndUnix: %s x %s\n", path, s1, s2)
 	t1, errTime := time.Parse(time.RFC3339, s1)
 	if errTime != nil {
-		fmt.Printf("timeAndUnix: %s x %s: %v\n", s1, s2, errTime)
+		fmt.Printf("path=[%s] timeAndUnix: %s x %s: %v\n", path, s1, s2, errTime)
 		return false
 	}
 	f, errFloat := strconv.ParseFloat(s2, 64)
 	if errFloat != nil {
-		fmt.Printf("timeAndUnix: %s x %s: %v\n", s1, s2, errFloat)
+		fmt.Printf("path=[%s] timeAndUnix: %s x %s: %v\n", path, s1, s2, errFloat)
 		return false
 	}
 	t2 := time.Unix(int64(f), 0)
 	result := t1 == t2
-	fmt.Printf("timeAndUnix: %s x %s: %v x %v: %v\n", s1, s2, t1, t2, result)
+	fmt.Printf("path=[%s] timeAndUnix: %s x %s: %v x %v: %v\n", path, s1, s2, t1, t2, result)
 	return result
 
 }
@@ -337,8 +352,13 @@ func sendEval(config *configservice.Client, resultToken, resourceType, resourceI
 
 	fmt.Printf("configuration item compliance: %s\n", compliance)
 
+	var ann *string
+	if annotation != "" {
+		ann = &annotation
+	}
+
 	eval := configservice.Evaluation{
-		Annotation:             &annotation,
+		Annotation:             ann,
 		ComplianceResourceType: &resourceType,
 		ComplianceResourceId:   &resourceId,
 		ComplianceType:         compliance,
