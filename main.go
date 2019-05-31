@@ -198,19 +198,15 @@ func findOffense(path string, item, target map[string]interface{}) bool {
 			}
 			return findOffense(path+"."+tk, ivm, tvm)
 		}
-		tvs, tvStr := tv.(string)
-		if !tvStr {
-			fmt.Printf("path=[%s] key=%s target non-string value: %v\n", path, tk, tv)
+		tvs, errTv := scalarString(tv)
+		if errTv != nil {
+			fmt.Printf("path=[%s] key=%s target value: %v\n", path, tk, errTv)
 			return true
 		}
-		ivs, ivStr := iv.(string)
-		if !ivStr {
-			ivf, ivFloat := iv.(float32)
-			if !ivFloat {
-				fmt.Printf("path=[%s] key=%s item non-string/non-float32 value: %v (but target is string)\n", path, tk, iv)
-				return true
-			}
-			ivs = fmt.Sprint(ivf)
+		ivs, errIv := scalarString(iv)
+		if errIv != nil {
+			fmt.Printf("path=[%s] key=%s item value: %v\n", path, tk, errIv)
+			return true
 		}
 		if tvs != ivs {
 			fmt.Printf("path=[%s] key=%s value mismatch: targetValue=%s itemValue=%s\n", path, tk, tvs, ivs)
@@ -219,6 +215,18 @@ func findOffense(path string, item, target map[string]interface{}) bool {
 	}
 
 	return false
+}
+
+func scalarString(v interface{}) (string, error) {
+	s, str := v.(string)
+	if str {
+		return s, nil
+	}
+	f32, isF32 := v.(float32)
+	if isF32 {
+		return fmt.Sprint(f32), nil
+	}
+	return "", fmt.Errorf("non-string/non-float32: %v", v)
 }
 
 /*

@@ -20,6 +20,12 @@ hash jq || die missing jq
 
 resource_id=$1
 
-aws configservice get-resource-config-history --max-items 1 --resource-type AWS::EC2::Instance --resource-id $resource_id | jq -r '.configurationItems[0]' > $resource_id || die failure fetching resource
+filter() {
+	# extract only first item
+	# exclude field 'version'
+	jq -r '.configurationItems[0]' | jq -r 'del(.version)'
+}
+
+aws configservice get-resource-config-history --max-items 1 --resource-type AWS::EC2::Instance --resource-id $resource_id | filter > $resource_id || die failure fetching resource
 
 msg saved resource as: $resource_id
