@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	//"reflect"
 	"runtime"
 	"time"
 
@@ -169,45 +170,50 @@ func findOffense(path string, item, target map[string]interface{}) bool {
 	for tk, tv := range target {
 		iv, foundKey := item[tk]
 		if !foundKey {
-			fmt.Printf("path=[%s] missing key=%s on item", path, tk)
+			fmt.Printf("path=[%s] key=%s missing key on item", path, tk)
 			return true
+		}
+		//checkMap("target", tk, tv)
+		//checkMap("item", tk, iv)
+		tvm, tvMap := tv.(map[string]interface{})
+		if tvMap {
+			ivm, ivMap := iv.(map[string]interface{})
+			if !ivMap {
+				fmt.Printf("path=[%s] key=%s item non-map value: %v", path, tk, iv)
+				return true
+			}
+			return findOffense(path+"."+tk, ivm, tvm)
 		}
 		tvs, tvStr := tv.(string)
 		if !tvStr {
-			fmt.Printf("path=[%s] target non-string value: %v", path, tv)
+			fmt.Printf("path=[%s] key=%s target non-string value: %v", path, tk, tv)
 			return true
 		}
 		ivs, ivStr := iv.(string)
 		if !ivStr {
-			fmt.Printf("path=[%s] item non-string value: %v", path, iv)
+			fmt.Printf("path=[%s] key=%s item non-string value: %v (but target is string)", path, tk, iv)
 			return true
 		}
-		if !isJSON(tvs) {
-			if tvs != ivs {
-				fmt.Printf("path=[%s] key=%s value mismatch: targetValue=%s itemValue=%s", path, tk, tvs, ivs)
-				return true
-			}
-		}
-		tm := map[string]interface{}{}
-		if errTm := json.Unmarshal([]byte(tvs), &tm); errTm != nil {
-			fmt.Printf("path=[%s] key=%s target json error: %v", path, tk, errTm)
+		if tvs != ivs {
+			fmt.Printf("path=[%s] key=%s value mismatch: targetValue=%s itemValue=%s", path, tk, tvs, ivs)
 			return true
 		}
-		im := map[string]interface{}{}
-		if errIm := json.Unmarshal([]byte(ivs), &im); errIm != nil {
-			fmt.Printf("path=[%s] key=%s item json error: %v", path, tk, errIm)
-			return true
-		}
-		return findOffense(path+"."+tk, im, tm)
 	}
 
 	return false
+}
+
+/*
+func checkMap(label, key string, i interface{}) {
+	_, isMap := i.(map[string]interface{})
+	fmt.Printf("checkMap: %s key=%s reflect=%s typeSwitch=%v\n", label, key, reflect.ValueOf(i).Kind(), isMap)
 }
 
 func isJSON(str string) bool {
 	var raw json.RawMessage
 	return json.Unmarshal([]byte(str), &raw) == nil
 }
+*/
 
 func sendEval(config *configservice.Client, resultToken, resourceType, resourceId string, timestamp time.Time, compliance configservice.ComplianceType) {
 
