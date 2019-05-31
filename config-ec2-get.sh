@@ -26,6 +26,7 @@ exclude() {
 .configurationItemMD5Hash
 .arn
 .configurationItemCaptureTime
+.accountId
 __EOF__
 }
 
