@@ -285,11 +285,19 @@ func scalarString(v interface{}) (string, error) {
 	if str {
 		return s, nil
 	}
+	i64, isInt64 := v.(int64)
+	if isInt64 {
+		return fmt.Sprint(i64), nil
+	}
 	f32, isF32 := v.(float32)
 	if isF32 {
 		return fmt.Sprint(f32), nil
 	}
-	return "", fmt.Errorf("non-string/non-float32: %v", v)
+	f64, isF64 := v.(float64)
+	if isF64 {
+		return fmt.Sprint(f64), nil
+	}
+	return "", fmt.Errorf("non-string/non-float: %v", v)
 }
 
 /*
