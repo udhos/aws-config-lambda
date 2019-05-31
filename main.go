@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -136,6 +137,7 @@ func Handler(ctx context.Context, configEvent events.ConfigEvent) (out Out, err 
 	// ComplianceType
 	// https://godoc.org/github.com/aws/aws-sdk-go-v2/service/configservice#ComplianceType
 	compliance := configservice.ComplianceTypeNotApplicable
+	annotation := ""
 
 	isApplicable := (status == "OK" || status == "ResourceDiscovered") && !configEvent.EventLeftScope
 
@@ -147,45 +149,46 @@ func Handler(ctx context.Context, configEvent events.ConfigEvent) (out Out, err 
 	}
 
 	if isApplicable {
-		compliance = eval(clientConf.s3, configItem, bucket, resourceId, dumpConfigItem)
+		compliance, annotation = eval(clientConf.s3, configItem, bucket, resourceId, dumpConfigItem)
+		if annotation != "" {
+			fmt.Println(annotation)
+		}
 	}
 
 	// Send evaluation result
 
-	sendEval(clientConf.config, configEvent.ResultToken, resourceType, resourceId, t, compliance)
+	sendEval(clientConf.config, configEvent.ResultToken, resourceType, resourceId, t, compliance, annotation)
 
 	return
 }
 
 // eval: compare item against target
-func eval(s3Client *s3.Client, configItem map[string]interface{}, bucket, resourceId string, dump bool) configservice.ComplianceType {
+func eval(s3Client *s3.Client, configItem map[string]interface{}, bucket, resourceId string, dump bool) (configservice.ComplianceType, string) {
 
 	// Fetch target configuration
 
 	target, errTarget := fetch(s3Client, bucket, resourceId)
 	if errTarget != nil {
-		fmt.Printf("fetch: bucket=%s key=%s %v\n", bucket, resourceId, errTarget)
-		return configservice.ComplianceTypeNonCompliant // target not found
+		return configservice.ComplianceTypeNonCompliant, fmt.Sprintf("fetch: bucket=%s key=%s %v", bucket, resourceId, errTarget)
 	}
 
 	if dump {
 		logItem("dump config item target: ", target)
 	}
 
-	if offense := findOffenseMap("", configItem, target); offense {
-		return configservice.ComplianceTypeNonCompliant
+	if offense, annotation := findOffenseMap("", configItem, target); offense {
+		return configservice.ComplianceTypeNonCompliant, annotation
 	}
 
-	return configservice.ComplianceTypeCompliant
+	return configservice.ComplianceTypeCompliant, ""
 }
 
-func findOffenseMap(path string, item, target map[string]interface{}) bool {
+func findOffenseMap(path string, item, target map[string]interface{}) (bool, string) {
 
 	for tk, tv := range target {
 		iv, foundKey := item[tk]
 		if !foundKey {
-			fmt.Printf("path=[%s] key=%s missing key on item\n", path, tk)
-			return true
+			return true, fmt.Sprintf("path=[%s] key=%s missing key on item", path, tk)
 		}
 
 		child := path + "." + tk
@@ -195,8 +198,7 @@ func findOffenseMap(path string, item, target map[string]interface{}) bool {
 		if tvMap {
 			ivm, ivMap := iv.(map[string]interface{})
 			if !ivMap {
-				fmt.Printf("path=[%s] key=%s item non-map value: %v\n", path, tk, iv)
-				return true
+				return true, fmt.Sprintf("path=[%s] key=%s item non-map value: %v", path, tk, iv)
 			}
 			return findOffenseMap(child, ivm, tvm)
 		}
@@ -206,63 +208,83 @@ func findOffenseMap(path string, item, target map[string]interface{}) bool {
 		if tvIsSlice {
 			ivSlice, ivIsSlice := iv.([]interface{})
 			if !ivIsSlice {
-				fmt.Printf("path=[%s] key=%s item non-slice value: %v\n", path, tk, iv)
-				return true
+				return true, fmt.Sprintf("path=[%s] key=%s item non-slice value: %v", path, tk, iv)
 			}
 			return findOffenseSlice(child, ivSlice, tvSlice)
 		}
 
 		// scalar
-		if offense := findOffenseScalar(child, iv, tv); offense {
-			return true
+		if offense, annotation := findOffenseScalar(child, iv, tv); offense {
+			return true, annotation
 		}
 	}
 
-	return false
+	return false, ""
 }
 
-func findOffenseScalar(path string, item, target interface{}) bool {
+func findOffenseScalar(path string, item, target interface{}) (bool, string) {
 	tvs, errTv := scalarString(target)
 	if errTv != nil {
-		fmt.Printf("path=[%s] target value: %v\n", path, errTv)
-		return true
+		return true, fmt.Sprintf("path=[%s] target value: %v", path, errTv)
 	}
 	ivs, errIv := scalarString(item)
 	if errIv != nil {
-		fmt.Printf("path=[%s] item value: %v\n", path, errIv)
-		return true
+		return true, fmt.Sprintf("path=[%s] item value: %v", path, errIv)
 	}
 	if tvs != ivs {
-		fmt.Printf("path=[%s] value mismatch: targetValue=%s itemValue=%s\n", path, tvs, ivs)
-		return true
+		if matchTime(tvs, ivs) {
+			return false, ""
+		}
+		return true, fmt.Sprintf("path=[%s] value mismatch: targetValue=%s itemValue=%s", path, tvs, ivs)
 	}
 
-	return false
+	return false, ""
 }
 
-func findOffenseSlice(path string, item, target []interface{}) bool {
+func matchTime(s1, s2 string) bool {
+	return timeAndUnix(s1, s2) || timeAndUnix(s2, s1)
+}
+
+func timeAndUnix(s1, s2 string) bool {
+	fmt.Printf("timeAndUnix: %s x %s\n", s1, s2)
+	t1, errTime := time.Parse(time.RFC3339, s1)
+	if errTime != nil {
+		fmt.Printf("timeAndUnix: %s x %s: %v\n", s1, s2, errTime)
+		return false
+	}
+	f, errFloat := strconv.ParseFloat(s2, 64)
+	if errFloat != nil {
+		fmt.Printf("timeAndUnix: %s x %s: %v\n", s1, s2, errFloat)
+		return false
+	}
+	t2 := time.Unix(int64(f), 0)
+	result := t1 == t2
+	fmt.Printf("timeAndUnix: %s x %s: %v x %v: %v\n", s1, s2, t1, t2, result)
+	return result
+
+}
+
+func findOffenseSlice(path string, item, target []interface{}) (bool, string) {
 	if len(item) != len(target) {
-		fmt.Printf("path=[%s] slice size mismatch: target=%d item=%d\n", path, len(target), len(item))
-		return true
+		return true, fmt.Sprintf("path=[%s] slice size mismatch: target=%d item=%d", path, len(target), len(item))
 	}
 	for i, t := range target {
 		it := item[i]
 		child := path + "." + fmt.Sprint(i)
-		offense := findOffense(child, it, t)
+		offense, annotation := findOffense(child, it, t)
 		if offense {
-			return true
+			return true, annotation
 		}
 	}
-	return false
+	return false, ""
 }
 
-func findOffense(path string, item, target interface{}) bool {
+func findOffense(path string, item, target interface{}) (bool, string) {
 	tm, tMap := target.(map[string]interface{})
 	if tMap {
 		im, iMap := item.(map[string]interface{})
 		if !iMap {
-			fmt.Printf("path=[%s] target is map, item is not\n", path)
-			return true
+			return true, fmt.Sprintf("path=[%s] target is map, item is not", path)
 		}
 		return findOffenseMap(path, im, tm)
 	}
@@ -271,8 +293,7 @@ func findOffense(path string, item, target interface{}) bool {
 	if tSlice {
 		is, iSlice := item.([]interface{})
 		if !iSlice {
-			fmt.Printf("path=[%s] target is slice, item is not\n", path)
-			return true
+			return true, fmt.Sprintf("path=[%s] target is slice, item is not", path)
 		}
 		return findOffenseSlice(path, is, ts)
 	}
@@ -312,11 +333,12 @@ func isJSON(str string) bool {
 }
 */
 
-func sendEval(config *configservice.Client, resultToken, resourceType, resourceId string, timestamp time.Time, compliance configservice.ComplianceType) {
+func sendEval(config *configservice.Client, resultToken, resourceType, resourceId string, timestamp time.Time, compliance configservice.ComplianceType, annotation string) {
 
 	fmt.Printf("configuration item compliance: %s\n", compliance)
 
 	eval := configservice.Evaluation{
+		Annotation:             &annotation,
 		ComplianceResourceType: &resourceType,
 		ComplianceResourceId:   &resourceId,
 		ComplianceType:         compliance,
