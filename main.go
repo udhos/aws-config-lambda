@@ -308,6 +308,14 @@ func isJSON(str string) bool {
 }
 
 func findOffenseScalar(path string, item, target interface{}, dump bool) (bool, string) {
+	offense, annotation := offenseScalar(path, item, target)
+	if dump {
+		fmt.Printf("findOffenseScalar: path=%s item=%v target=%v offense=%v annotation=%v\n", path, item, target, offense, annotation)
+	}
+	return offense, annotation
+}
+
+func offenseScalar(path string, item, target interface{}) (bool, string) {
 	tvs, errTv := scalarString(target)
 	if errTv != nil {
 		return true, fmt.Sprintf("path=[%s] target value: %v", path, errTv)
