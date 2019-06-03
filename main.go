@@ -215,7 +215,6 @@ func findOffenseMap(path string, item, target map[string]interface{}) (bool, str
 
 		// map?
 		tvm, tvMap := tv.(map[string]interface{})
-		//fmt.Printf("findOffenseMap: path=%s map=%v reflect=%v\n", child, tvMap, reflect.TypeOf(tv).Kind())
 		if tvMap {
 			ivm, ivMap := iv.(map[string]interface{})
 			if !ivMap {
@@ -226,7 +225,6 @@ func findOffenseMap(path string, item, target map[string]interface{}) (bool, str
 
 		// slice?
 		tvSlice, tvIsSlice := tv.([]interface{})
-		//fmt.Printf("findOffenseMap: path=%s slice=%v\n", child, tvIsSlice)
 		if tvIsSlice {
 			ivSlice, ivIsSlice := iv.([]interface{})
 			if !ivIsSlice {
@@ -360,7 +358,7 @@ func scalarString(v interface{}) (string, error) {
 	if isF64 {
 		return fmt.Sprint(f64), nil
 	}
-	return "", fmt.Errorf("non-string/non-float: %v", v)
+	return "", fmt.Errorf("non-string/int/float: %v", v)
 }
 
 func sendEval(config *configservice.Client, resultToken, resourceType, resourceId string, timestamp time.Time, compliance configservice.ComplianceType, annotation string) {
