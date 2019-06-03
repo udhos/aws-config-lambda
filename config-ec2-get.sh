@@ -28,6 +28,7 @@ exclude() {
 .configurationItemCaptureTime
 .accountId
 .configurationStateId
+.relationships[].relationshipName
 __EOF__
 }
 
