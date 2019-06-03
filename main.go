@@ -239,12 +239,12 @@ func findOffenseMap(path string, item, target map[string]interface{}, dump bool)
 		// encoded?
 		tvj, tvString := tv.(string)
 		if dump {
-			fmt.Printf("findOffenseMap: path=%s target_value_is_string=%v", child, tvString)
+			fmt.Printf("findOffenseMap: path=%s target_value_is_string=%v\n", child, tvString)
 		}
 		if tvString {
 			isJ := isJSON(tvj)
 			if dump {
-				fmt.Printf("findOffenseMap: path=%s target_value_is_json=%v", child, isJ)
+				fmt.Printf("findOffenseMap: path=%s target_value_is_json=%v\n", child, isJ)
 			}
 			if isJ {
 				var j interface{}
@@ -266,7 +266,7 @@ func findOffenseMap(path string, item, target map[string]interface{}, dump bool)
 		// map?
 		tvm, tvMap := tv.(map[string]interface{})
 		if dump {
-			fmt.Printf("findOffenseMap: path=%s target_value_is_map=%v", child, tvMap)
+			fmt.Printf("findOffenseMap: path=%s target_value_is_map=%v\n", child, tvMap)
 		}
 		if tvMap {
 			ivm, ivMap := iv.(map[string]interface{})
@@ -279,7 +279,7 @@ func findOffenseMap(path string, item, target map[string]interface{}, dump bool)
 		// slice?
 		tvSlice, tvIsSlice := tv.([]interface{})
 		if dump {
-			fmt.Printf("findOffenseMap: path=%s target_value_is_slice=%v", child, tvIsSlice)
+			fmt.Printf("findOffenseMap: path=%s target_value_is_slice=%v\n", child, tvIsSlice)
 		}
 		if tvIsSlice {
 			ivSlice, ivIsSlice := iv.([]interface{})
@@ -287,6 +287,10 @@ func findOffenseMap(path string, item, target map[string]interface{}, dump bool)
 				return true, fmt.Sprintf("path=[%s] key=%s item non-slice value: %v", path, tk, iv)
 			}
 			return findOffenseSlice(child, ivSlice, tvSlice, dump)
+		}
+
+		if dump {
+			fmt.Printf("findOffenseMap: path=%s target_value_is_scalar\n", child)
 		}
 
 		// scalar?
