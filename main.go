@@ -219,14 +219,14 @@ func eval(s3Client *s3.Client, configItem map[string]interface{}, bucket, resour
 		logItem("dump config item target: ", target)
 	}
 
-	if offense, annotation := findOffenseMap("", configItem, target); offense {
+	if offense, annotation := findOffenseMap("", configItem, target, dump); offense {
 		return configservice.ComplianceTypeNonCompliant, annotation
 	}
 
 	return configservice.ComplianceTypeCompliant, ""
 }
 
-func findOffenseMap(path string, item, target map[string]interface{}) (bool, string) {
+func findOffenseMap(path string, item, target map[string]interface{}, dump bool) (bool, string) {
 
 	for tk, tv := range target {
 		iv, foundKey := item[tk]
@@ -238,18 +238,25 @@ func findOffenseMap(path string, item, target map[string]interface{}) (bool, str
 
 		// encoded?
 		tvj, tvString := tv.(string)
+		if dump {
+			fmt.Printf("findOffenseMap: path=%s target_value_is_string=%v", child, tvString)
+		}
 		if tvString {
-			if isJSON(tvj) {
+			isJ := isJSON(tvj)
+			if dump {
+				fmt.Printf("findOffenseMap: path=%s target_value_is_json=%v", child, isJ)
+			}
+			if isJ {
 				var j interface{}
 				if errJson := json.Unmarshal([]byte(tvj), &j); errJson != nil {
 					return true, fmt.Sprintf("path=[%s] key=%s target bad json: %v", path, tk, errJson)
 				}
-				if offense, annotation := findOffense(child, iv, j); offense {
+				if offense, annotation := findOffense(child, iv, j, dump); offense {
 					return offense, annotation
 				}
 			} else {
 				// scalar?
-				if offense, annotation := findOffenseScalar(child, iv, tvj); offense {
+				if offense, annotation := findOffenseScalar(child, iv, tvj, dump); offense {
 					return true, annotation
 				}
 			}
@@ -258,26 +265,32 @@ func findOffenseMap(path string, item, target map[string]interface{}) (bool, str
 
 		// map?
 		tvm, tvMap := tv.(map[string]interface{})
+		if dump {
+			fmt.Printf("findOffenseMap: path=%s target_value_is_map=%v", child, tvMap)
+		}
 		if tvMap {
 			ivm, ivMap := iv.(map[string]interface{})
 			if !ivMap {
 				return true, fmt.Sprintf("path=[%s] key=%s item non-map value: %v", path, tk, iv)
 			}
-			return findOffenseMap(child, ivm, tvm)
+			return findOffenseMap(child, ivm, tvm, dump)
 		}
 
 		// slice?
 		tvSlice, tvIsSlice := tv.([]interface{})
+		if dump {
+			fmt.Printf("findOffenseMap: path=%s target_value_is_slice=%v", child, tvIsSlice)
+		}
 		if tvIsSlice {
 			ivSlice, ivIsSlice := iv.([]interface{})
 			if !ivIsSlice {
 				return true, fmt.Sprintf("path=[%s] key=%s item non-slice value: %v", path, tk, iv)
 			}
-			return findOffenseSlice(child, ivSlice, tvSlice)
+			return findOffenseSlice(child, ivSlice, tvSlice, dump)
 		}
 
 		// scalar?
-		if offense, annotation := findOffenseScalar(child, iv, tv); offense {
+		if offense, annotation := findOffenseScalar(child, iv, tv, dump); offense {
 			return true, annotation
 		}
 	}
@@ -290,7 +303,7 @@ func isJSON(str string) bool {
 	return json.Unmarshal([]byte(str), &js) == nil
 }
 
-func findOffenseScalar(path string, item, target interface{}) (bool, string) {
+func findOffenseScalar(path string, item, target interface{}, dump bool) (bool, string) {
 	tvs, errTv := scalarString(target)
 	if errTv != nil {
 		return true, fmt.Sprintf("path=[%s] target value: %v", path, errTv)
@@ -347,14 +360,14 @@ func timeAndUnix(path string, s1, s2 string) bool {
 
 }
 
-func findOffenseSlice(path string, item, target []interface{}) (bool, string) {
+func findOffenseSlice(path string, item, target []interface{}, dump bool) (bool, string) {
 	if len(item) != len(target) {
 		return true, fmt.Sprintf("path=[%s] slice size mismatch: target=%d item=%d", path, len(target), len(item))
 	}
 	for i, t := range target {
 		it := item[i]
 		child := path + "." + fmt.Sprint(i)
-		offense, annotation := findOffense(child, it, t)
+		offense, annotation := findOffense(child, it, t, dump)
 		if offense {
 			return true, annotation
 		}
@@ -362,14 +375,14 @@ func findOffenseSlice(path string, item, target []interface{}) (bool, string) {
 	return false, ""
 }
 
-func findOffense(path string, item, target interface{}) (bool, string) {
+func findOffense(path string, item, target interface{}, dump bool) (bool, string) {
 	tm, tMap := target.(map[string]interface{})
 	if tMap {
 		im, iMap := item.(map[string]interface{})
 		if !iMap {
 			return true, fmt.Sprintf("path=[%s] target is map, item is not", path)
 		}
-		return findOffenseMap(path, im, tm)
+		return findOffenseMap(path, im, tm, dump)
 	}
 
 	ts, tSlice := target.([]interface{})
@@ -378,10 +391,10 @@ func findOffense(path string, item, target interface{}) (bool, string) {
 		if !iSlice {
 			return true, fmt.Sprintf("path=[%s] target is slice, item is not", path)
 		}
-		return findOffenseSlice(path, is, ts)
+		return findOffenseSlice(path, is, ts, dump)
 	}
 
-	return findOffenseScalar(path, item, target)
+	return findOffenseScalar(path, item, target, dump)
 }
 
 func scalarString(v interface{}) (string, error) {

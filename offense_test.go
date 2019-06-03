@@ -29,8 +29,10 @@ func TestOffenseMap(t *testing.T) {
 		},
 	}
 
+	dump := false
+
 	for _, test := range tests {
-		o, annotation := findOffenseMap("", test.item, test.target)
+		o, annotation := findOffenseMap("", test.item, test.target, dump)
 		if o != test.offense {
 			t.Errorf("offenseExpected=%v offenseFound=%v annotation=%s target=%v item=%v", test.offense, o, annotation, test.target, test.item)
 		}
@@ -72,6 +74,8 @@ func TestOffenseJson(t *testing.T) {
 		},
 	}
 
+	dump := false
+
 	for _, test := range tests {
 		tm := map[string]interface{}{}
 		if err := json.Unmarshal([]byte(test.target), &tm); err != nil {
@@ -81,7 +85,7 @@ func TestOffenseJson(t *testing.T) {
 		if err := json.Unmarshal([]byte(test.item), &im); err != nil {
 			t.Errorf("bad json item=%v %v", test.item, err)
 		}
-		o, annotation := findOffenseMap("", im, tm)
+		o, annotation := findOffenseMap("", im, tm, dump)
 		if o != test.offense {
 			t.Errorf("offenseExpected=%v offenseFound=%v annotation=%s target=%v item=%v", test.offense, o, annotation, test.target, test.item)
 		}
