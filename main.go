@@ -52,6 +52,7 @@ func Handler(ctx context.Context, configEvent events.ConfigEvent) (out Out, err 
 	var bucket string
 	restrictResourceTypes := map[string]struct{}{}
 	var topicArn string
+	var forceNonCompliance bool
 
 	if params := configEvent.RuleParameters; params != "" {
 		ruleParameters := map[string]string{}
@@ -75,8 +76,11 @@ func Handler(ctx context.Context, configEvent events.ConfigEvent) (out Out, err 
 			}
 
 			bucket = ruleParameters["Bucket"]
-
 			topicArn = ruleParameters["TopicArn"]
+
+			if _, found := ruleParameters["ForceNonCompliance"]; found {
+				forceNonCompliance = true
+			}
 		}
 	}
 
@@ -144,6 +148,12 @@ func Handler(ctx context.Context, configEvent events.ConfigEvent) (out Out, err 
 	annotation := ""
 
 	isApplicable := (status == "OK" || status == "ResourceDiscovered") && !configEvent.EventLeftScope
+
+	if forceNonCompliance {
+		isApplicable = false
+		compliance = configservice.ComplianceTypeNonCompliant
+		annotation = "non-compliance forced by rule parameter ForceNonCompliance"
+	}
 
 	if isApplicable && len(restrictResourceTypes) > 0 {
 		if _, found := restrictResourceTypes[resourceType]; !found {
