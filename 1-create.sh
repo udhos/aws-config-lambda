@@ -5,7 +5,13 @@ die () {
     exit 1
 }
 
+region=sa-east-1
 role_name=role_config_lambda
+lambda_name=FunctionConfigLambda
+
+echo region: $region
+echo role: $role_name
+echo lambda: $lambda_name
 
 # create role
 aws iam create-role --role-name $role_name \
@@ -31,16 +37,15 @@ ROLE_ARN=`aws iam get-role --role-name $role_name --query 'Role.Arn' --output te
 
 echo ROLE_ARN=$ROLE_ARN
 
-region=sa-east-1
-echo region=$region
-
 # create function
 #
 # handler: name of the executable binary file within the zip package
 
+aws lambda delete-function --function-name $lambda_name
+
 aws lambda create-function \
     --region $region \
-    --function-name FunctionConfigLambda \
+    --function-name $lambda_name \
     --zip-file fileb://./main.zip \
     --runtime go1.x \
     --role "$ROLE_ARN" \
