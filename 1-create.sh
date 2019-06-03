@@ -22,6 +22,7 @@ aws iam create-role --role-name $role_name \
 # attach policy
 aws iam attach-role-policy --role-name $role_name --policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
 aws iam attach-role-policy --role-name $role_name --policy-arn arn:aws:iam::aws:policy/service-role/AWSConfigRole
+aws iam attach-role-policy --role-name $role_name --policy-arn arn:aws:iam::aws:policy/service-role/AmazonSNSRole
 
 # get role arn
 ROLE_ARN=`aws iam get-role --role-name $role_name --query 'Role.Arn' --output text`

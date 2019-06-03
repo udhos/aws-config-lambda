@@ -149,17 +149,17 @@ func Handler(ctx context.Context, configEvent events.ConfigEvent) (out Out, err 
 
 	isApplicable := (status == "OK" || status == "ResourceDiscovered") && !configEvent.EventLeftScope
 
-	if forceNonCompliance {
-		isApplicable = false
-		compliance = configservice.ComplianceTypeNonCompliant
-		annotation = "non-compliance forced by rule parameter ForceNonCompliance"
-	}
-
 	if isApplicable && len(restrictResourceTypes) > 0 {
 		if _, found := restrictResourceTypes[resourceType]; !found {
 			fmt.Printf("resourceType=%s missing from parameter ResourceTypes\n", resourceType)
 			isApplicable = false
 		}
+	}
+
+	if isApplicable && forceNonCompliance {
+		isApplicable = false
+		compliance = configservice.ComplianceTypeNonCompliant
+		annotation = "non-compliance forced by rule parameter ForceNonCompliance"
 	}
 
 	if isApplicable {
