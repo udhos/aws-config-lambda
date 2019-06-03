@@ -391,7 +391,11 @@ func scalarString(v interface{}) (string, error) {
 	if isF64 {
 		return fmt.Sprint(f64), nil
 	}
-	return "", fmt.Errorf("non-string/int/float: %v", v)
+	b, isBool := v.(bool)
+	if isBool {
+		return fmt.Sprint(b), nil
+	}
+	return "", fmt.Errorf("non-string/int/float/bool: %v", v)
 }
 
 func sendEval(config *configservice.Client, resultToken, resourceType, resourceId string, timestamp time.Time, compliance configservice.ComplianceType, annotation string) {
