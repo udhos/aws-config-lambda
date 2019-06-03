@@ -193,8 +193,29 @@ func findOffenseMap(path string, item, target map[string]interface{}) (bool, str
 
 		child := path + "." + tk
 
-		// map
+		// encoded?
+		tvj, tvString := tv.(string)
+		if tvString {
+			if isJSON(tvj) {
+				var j interface{}
+				if errJson := json.Unmarshal([]byte(tvj), &j); errJson != nil {
+					return true, fmt.Sprintf("path=[%s] key=%s target bad json: %v", path, tk, errJson)
+				}
+				if offense, annotation := findOffense(child, iv, j); offense {
+					return offense, annotation
+				}
+			} else {
+				// scalar?
+				if offense, annotation := findOffenseScalar(child, iv, tvj); offense {
+					return true, annotation
+				}
+			}
+			continue // no offense found
+		}
+
+		// map?
 		tvm, tvMap := tv.(map[string]interface{})
+		//fmt.Printf("findOffenseMap: path=%s map=%v reflect=%v\n", child, tvMap, reflect.TypeOf(tv).Kind())
 		if tvMap {
 			ivm, ivMap := iv.(map[string]interface{})
 			if !ivMap {
@@ -203,8 +224,9 @@ func findOffenseMap(path string, item, target map[string]interface{}) (bool, str
 			return findOffenseMap(child, ivm, tvm)
 		}
 
-		// slice
+		// slice?
 		tvSlice, tvIsSlice := tv.([]interface{})
+		//fmt.Printf("findOffenseMap: path=%s slice=%v\n", child, tvIsSlice)
 		if tvIsSlice {
 			ivSlice, ivIsSlice := iv.([]interface{})
 			if !ivIsSlice {
@@ -213,13 +235,18 @@ func findOffenseMap(path string, item, target map[string]interface{}) (bool, str
 			return findOffenseSlice(child, ivSlice, tvSlice)
 		}
 
-		// scalar
+		// scalar?
 		if offense, annotation := findOffenseScalar(child, iv, tv); offense {
 			return true, annotation
 		}
 	}
 
 	return false, ""
+}
+
+func isJSON(str string) bool {
+	var js json.RawMessage
+	return json.Unmarshal([]byte(str), &js) == nil
 }
 
 func findOffenseScalar(path string, item, target interface{}) (bool, string) {
@@ -335,18 +362,6 @@ func scalarString(v interface{}) (string, error) {
 	}
 	return "", fmt.Errorf("non-string/non-float: %v", v)
 }
-
-/*
-func checkMap(label, key string, i interface{}) {
-	_, isMap := i.(map[string]interface{})
-	fmt.Printf("checkMap: %s key=%s reflect=%s typeSwitch=%v\n", label, key, reflect.ValueOf(i).Kind(), isMap)
-}
-
-func isJSON(str string) bool {
-	var raw json.RawMessage
-	return json.Unmarshal([]byte(str), &raw) == nil
-}
-*/
 
 func sendEval(config *configservice.Client, resultToken, resourceType, resourceId string, timestamp time.Time, compliance configservice.ComplianceType, annotation string) {
 
