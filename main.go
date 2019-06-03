@@ -228,6 +228,14 @@ func eval(s3Client *s3.Client, configItem map[string]interface{}, bucket, resour
 
 func findOffenseMap(path string, item, target map[string]interface{}, dump bool) (bool, string) {
 
+	if dump {
+		keys := []string{}
+		for k := range target {
+			keys = append(keys, k)
+		}
+		fmt.Printf("findOffenseMap: path=%s keys=%s\n", path, strings.Join(keys, ","))
+	}
+
 	for tk, tv := range target {
 		iv, foundKey := item[tk]
 		if !foundKey {
