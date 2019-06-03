@@ -18,6 +18,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws/external"
 	"github.com/aws/aws-sdk-go-v2/service/configservice"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/sns"
 )
 
 func main() {
@@ -50,6 +51,7 @@ func Handler(ctx context.Context, configEvent events.ConfigEvent) (out Out, err 
 	var dumpConfigItem bool
 	var bucket string
 	restrictResourceTypes := map[string]struct{}{}
+	var topicArn string
 
 	if params := configEvent.RuleParameters; params != "" {
 		ruleParameters := map[string]string{}
@@ -73,6 +75,8 @@ func Handler(ctx context.Context, configEvent events.ConfigEvent) (out Out, err 
 			}
 
 			bucket = ruleParameters["Bucket"]
+
+			topicArn = ruleParameters["TopicArn"]
 		}
 	}
 
@@ -159,7 +163,36 @@ func Handler(ctx context.Context, configEvent events.ConfigEvent) (out Out, err 
 
 	sendEval(clientConf.config, configEvent.ResultToken, resourceType, resourceId, t, compliance, annotation)
 
+	if compliance == configservice.ComplianceTypeNonCompliant && topicArn != "" {
+		sendSns(clientConf.sns, configEvent.ConfigRuleName, resourceType, resourceId, annotation, topicArn, compliance)
+	}
+
 	return
+}
+
+func sendSns(snsClient *sns.Client, ruleName, resourceType, resourceId, annotation, topicArn string, compliance configservice.ComplianceType) {
+
+	var ann *string
+
+	if annotation != "" {
+		ann = &annotation
+	}
+
+	sub := fmt.Sprintf("Non-compliance: %s %s %s", ruleName, resourceType, resourceId)
+
+	params := sns.PublishInput{
+		Subject:  &sub,
+		Message:  ann,
+		TopicArn: &topicArn,
+	}
+
+	req := snsClient.PublishRequest(&params)
+	resp, errSns := req.Send(context.TODO())
+	if errSns == nil {
+		fmt.Println("PublishRequest ok: ", resp)
+	} else {
+		fmt.Println("PublishRequest error: ", errSns)
+	}
 }
 
 // eval: compare item against target
@@ -441,6 +474,7 @@ type conf struct {
 	cfg    aws.Config
 	config *configservice.Client
 	s3     *s3.Client
+	sns    *sns.Client
 }
 
 func getConfig() *conf {
@@ -457,6 +491,7 @@ func getConfig() *conf {
 		cfg:    cfg,
 		config: configservice.New(cfg),
 		s3:     s3.New(cfg),
+		sns:    sns.New(cfg),
 	}
 
 	return &c
