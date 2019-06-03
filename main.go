@@ -236,6 +236,8 @@ func findOffenseMap(path string, item, target map[string]interface{}, dump bool)
 		fmt.Printf("findOffenseMap: path=%s keys=%s\n", path, strings.Join(keys, ","))
 	}
 
+	key := 0
+
 	for tk, tv := range target {
 		iv, foundKey := item[tk]
 		if !foundKey {
@@ -243,6 +245,11 @@ func findOffenseMap(path string, item, target map[string]interface{}, dump bool)
 		}
 
 		child := path + "." + tk
+
+		key++
+		if dump {
+			fmt.Printf("findOffenseMap: path=%s %d/%d\n", child, key, len(target))
+		}
 
 		// encoded?
 		tvj, tvString := tv.(string)
