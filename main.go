@@ -375,6 +375,9 @@ func findOffense(path string, item, target interface{}) (bool, string) {
 }
 
 func scalarString(v interface{}) (string, error) {
+	if v == nil {
+		return "", nil
+	}
 	s, str := v.(string)
 	if str {
 		return s, nil
@@ -395,7 +398,7 @@ func scalarString(v interface{}) (string, error) {
 	if isBool {
 		return fmt.Sprint(b), nil
 	}
-	return "", fmt.Errorf("non-string/int/float/bool: %v", v)
+	return "", fmt.Errorf("non-nil/string/int/float/bool: %v", v)
 }
 
 func sendEval(config *configservice.Client, resultToken, resourceType, resourceId string, timestamp time.Time, compliance configservice.ComplianceType, annotation string) {

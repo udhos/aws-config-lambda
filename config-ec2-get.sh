@@ -29,6 +29,7 @@ exclude() {
 .accountId
 .configurationStateId
 .relationships[].relationshipName
+.kernelId
 __EOF__
 }
 
