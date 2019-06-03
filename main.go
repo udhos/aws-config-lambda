@@ -267,7 +267,7 @@ func findOffenseMap(path string, item, target map[string]interface{}, dump bool)
 					return true, fmt.Sprintf("path=[%s] key=%s target bad json: %v", path, tk, errJson)
 				}
 				if offense, annotation := findOffense(child, iv, j, dump); offense {
-					return offense, annotation
+					return true, annotation
 				}
 			} else {
 				// scalar?
@@ -288,7 +288,10 @@ func findOffenseMap(path string, item, target map[string]interface{}, dump bool)
 			if !ivMap {
 				return true, fmt.Sprintf("path=[%s] key=%s item non-map value: %v", path, tk, iv)
 			}
-			return findOffenseMap(child, ivm, tvm, dump)
+			if offense, annotation := findOffenseMap(child, ivm, tvm, dump); offense {
+				return true, annotation
+			}
+			continue // no offense found
 		}
 
 		// slice?
@@ -301,7 +304,10 @@ func findOffenseMap(path string, item, target map[string]interface{}, dump bool)
 			if !ivIsSlice {
 				return true, fmt.Sprintf("path=[%s] key=%s item non-slice value: %v", path, tk, iv)
 			}
-			return findOffenseSlice(child, ivSlice, tvSlice, dump)
+			if offense, annotation := findOffenseSlice(child, ivSlice, tvSlice, dump); offense {
+				return true, annotation
+			}
+			continue // no offense found
 		}
 
 		if dump {
@@ -314,7 +320,7 @@ func findOffenseMap(path string, item, target map[string]interface{}, dump bool)
 		}
 	}
 
-	return false, ""
+	return false, "" // no offense found
 }
 
 func isJSON(str string) bool {
@@ -394,8 +400,7 @@ func findOffenseSlice(path string, item, target []interface{}, dump bool) (bool,
 	for i, t := range target {
 		it := item[i]
 		child := path + "." + fmt.Sprint(i)
-		offense, annotation := findOffense(child, it, t, dump)
-		if offense {
+		if offense, annotation := findOffense(child, it, t, dump); offense {
 			return true, annotation
 		}
 	}
