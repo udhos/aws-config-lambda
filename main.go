@@ -354,6 +354,10 @@ func sendEval(config *configservice.Client, resultToken, resourceType, resourceI
 
 	var ann *string
 	if annotation != "" {
+		if len(annotation) > 255 {
+			fmt.Printf("truncating annotation to 255-char: %s\n", annotation)
+			annotation = annotation[:255]
+		}
 		ann = &annotation
 	}
 
