@@ -238,6 +238,7 @@ func findOffenseMap(path string, item, target map[string]interface{}, dump bool)
 
 	key := 0
 
+LOOP:
 	for tk, tv := range target {
 		iv, foundKey := item[tk]
 		if !foundKey {
@@ -275,7 +276,7 @@ func findOffenseMap(path string, item, target map[string]interface{}, dump bool)
 					return true, annotation
 				}
 			}
-			continue // no offense found
+			continue LOOP // no offense found
 		}
 
 		// map?
@@ -291,7 +292,7 @@ func findOffenseMap(path string, item, target map[string]interface{}, dump bool)
 			if offense, annotation := findOffenseMap(child, ivm, tvm, dump); offense {
 				return true, annotation
 			}
-			continue // no offense found
+			continue LOOP // no offense found
 		}
 
 		// slice?
@@ -307,7 +308,7 @@ func findOffenseMap(path string, item, target map[string]interface{}, dump bool)
 			if offense, annotation := findOffenseSlice(child, ivSlice, tvSlice, dump); offense {
 				return true, annotation
 			}
-			continue // no offense found
+			continue LOOP // no offense found
 		}
 
 		if dump {
