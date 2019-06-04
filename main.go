@@ -414,12 +414,32 @@ func findOffenseSlice(path string, item, target []interface{}, dump bool) (bool,
 	return false, ""
 }
 
+// interface => string => json => map
+func decodeStrJsonMap(i interface{}) (map[string]interface{}, bool) {
+	s, str := i.(string)
+	if !str {
+		return nil, false
+	}
+	isJ := isJSON(s)
+	if !isJ {
+		return nil, false
+	}
+	m := map[string]interface{}{}
+	if errJson := json.Unmarshal([]byte(s), &m); errJson != nil {
+		return nil, false
+	}
+	return m, true
+}
+
 func findOffense(path string, item, target interface{}, dump bool) (bool, string) {
 	tm, tMap := target.(map[string]interface{})
 	if tMap {
 		im, iMap := item.(map[string]interface{})
 		if !iMap {
-			return true, fmt.Sprintf("path=[%s] target is map, item is not", path)
+			im, iMap = decodeStrJsonMap(item) // try to decode string
+			if !iMap {
+				return true, fmt.Sprintf("path=[%s] target is map, item is not", path)
+			}
 		}
 		return findOffenseMap(path, im, tm, dump)
 	}
