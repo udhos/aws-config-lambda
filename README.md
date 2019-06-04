@@ -22,8 +22,8 @@ Helper scripts:
 
 Parameters for AWS Config Rules.
 
-- Bucket: Required.
+- Bucket: Required. Bucket storing desired configurations.
 - Dump: Optional. If defined as 'ConfigItem', enables verbose logging.
 - ResourceTypes: Optional. List of accepted resource types. If defined, restricts allowed resource types. Example value: 'AWS::EC2::Instance'
-- TopicArn: Optional. Example value: arn:aws:sns:sa-east-1:0123456789012:bucket-name-non-compliance
+- TopicArn: Optional. If defined, will publish non-compliance alerts. Example value: arn:aws:sns:sa-east-1:0123456789012:topic-name-for-non-compliance
 - ForceNonCompliance: Optional. If defined, evaluations will report non-compliance.
