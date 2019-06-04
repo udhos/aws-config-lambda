@@ -44,10 +44,6 @@ func Handler(ctx context.Context, configEvent events.ConfigEvent) (out Out, err 
 
 	count++
 
-	fmt.Printf("count=%d\n", count)
-	fmt.Printf("AWS Config rule: %s\n", configEvent.ConfigRuleName)
-	fmt.Printf("EventLeftScope=%v\n", configEvent.EventLeftScope)
-
 	var dumpConfigItem bool
 	var bucket string
 	restrictResourceTypes := map[string]struct{}{}
@@ -82,6 +78,10 @@ func Handler(ctx context.Context, configEvent events.ConfigEvent) (out Out, err 
 				forceNonCompliance = true
 			}
 		}
+	}
+
+	if dumpConfigItem {
+		fmt.Printf("count=%d\n", count)
 	}
 
 	clientConf := getConfig()
@@ -138,9 +138,11 @@ func Handler(ctx context.Context, configEvent events.ConfigEvent) (out Out, err 
 		fmt.Printf("parse time: '%s': %v\n", timestamp, errTime)
 	}
 
-	fmt.Printf("configuration item status: %s\n", status)
-	fmt.Printf("configuration item type: %s\n", resourceType)
-	fmt.Printf("configuration item id: %s\n", resourceId)
+	if dumpConfigItem {
+		fmt.Printf("configuration item status: %s\n", status)
+		fmt.Printf("configuration item type: %s\n", resourceType)
+		fmt.Printf("configuration item id: %s\n", resourceId)
+	}
 
 	// ComplianceType
 	// https://godoc.org/github.com/aws/aws-sdk-go-v2/service/configservice#ComplianceType
@@ -170,6 +172,10 @@ func Handler(ctx context.Context, configEvent events.ConfigEvent) (out Out, err 
 	}
 
 	// Send evaluation result
+
+	if dumpConfigItem {
+		fmt.Printf("configuration item compliance: %s\n", compliance)
+	}
 
 	sendEval(clientConf.config, configEvent.ResultToken, resourceType, resourceId, t, compliance, annotation)
 
@@ -376,20 +382,20 @@ func matchTime(path string, s1, s2 string) bool {
 }
 
 func timeAndUnix(path string, s1, s2 string) bool {
-	fmt.Printf("path=[%s] timeAndUnix: %s x %s\n", path, s1, s2)
+	//fmt.Printf("path=[%s] timeAndUnix: %s x %s\n", path, s1, s2)
 	t1, errTime := time.Parse(time.RFC3339, s1)
 	if errTime != nil {
-		fmt.Printf("path=[%s] timeAndUnix: %s x %s: %v\n", path, s1, s2, errTime)
+		//fmt.Printf("path=[%s] timeAndUnix: %s x %s: %v\n", path, s1, s2, errTime)
 		return false
 	}
 	f, errFloat := strconv.ParseFloat(s2, 64)
 	if errFloat != nil {
-		fmt.Printf("path=[%s] timeAndUnix: %s x %s: %v\n", path, s1, s2, errFloat)
+		//fmt.Printf("path=[%s] timeAndUnix: %s x %s: %v\n", path, s1, s2, errFloat)
 		return false
 	}
 	t2 := time.Unix(int64(f), 0)
 	result := t1.Equal(t2)
-	fmt.Printf("path=[%s] timeAndUnix: %s x %s: %v x %v: %v\n", path, s1, s2, t1, t2, result)
+	//fmt.Printf("path=[%s] timeAndUnix: %s x %s: %v x %v: %v\n", path, s1, s2, t1, t2, result)
 	return result
 
 }
@@ -458,9 +464,6 @@ func scalarString(v interface{}) (string, error) {
 }
 
 func sendEval(config *configservice.Client, resultToken, resourceType, resourceId string, timestamp time.Time, compliance configservice.ComplianceType, annotation string) {
-
-	fmt.Printf("configuration item compliance: %s\n", compliance)
-
 	var ann *string
 	if annotation != "" {
 		if len(annotation) > 255 {
