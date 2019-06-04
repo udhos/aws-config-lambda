@@ -109,7 +109,7 @@ func Handler(ctx context.Context, configEvent events.ConfigEvent) (out Out, err 
 
 	item, foundItem := invokingEvent["configurationItem"]
 	if !foundItem {
-		err = fmt.Errorf("configurationItem not found in InvokingEvent")
+		err = fmt.Errorf("'configurationItem' not found in InvokingEvent=%v", invokingEvent)
 		out.Str = err.Error()
 		fmt.Println(out.Str)
 		return
