@@ -97,9 +97,9 @@ func TestOffenseJson(t *testing.T) {
 
 func TestOffenseData(t *testing.T) {
 	root := "testdata"
-	dirItem := filepath.Join(root, "item")     // testdata/item/resource-id   = item
-	dirTarget := filepath.Join(root, "target") // testdata/target/resource-id = target
-	dirResult := filepath.Join(root, "result") // testdata/result/resource-id = annotation = empty "" means no error
+	dirItem := filepath.Join(root, "item")             // testdata/item/resource-id   = item
+	dirTarget := filepath.Join(root, "target")         // testdata/target/resource-id = target
+	dirAnnotation := filepath.Join(root, "annotation") // testdata/annotation/resource-id = annotation = empty "" means no error
 
 	files, errDir := ioutil.ReadDir(dirItem)
 	if errDir != nil {
@@ -120,9 +120,9 @@ func TestOffenseData(t *testing.T) {
 			t.Errorf("target file %s: %v", f.Name(), errTarget)
 			continue
 		}
-		pathResult := filepath.Join(dirResult, f.Name())
-		bufResult, _ := ioutil.ReadFile(pathResult)
-		expectOffense := len(bufResult) == 0
+		pathAnnotation := filepath.Join(dirAnnotation, f.Name())
+		bufAnnotation, _ := ioutil.ReadFile(pathAnnotation)
+		expectOffense := len(bufAnnotation) != 0
 		im := map[string]interface{}{}
 		if err := json.Unmarshal(bufItem, &im); err != nil {
 			t.Errorf("bad json item %s: %v", f.Name(), err)
@@ -134,10 +134,7 @@ func TestOffenseData(t *testing.T) {
 		dump := false
 		o, annotation := findOffenseMap("", im, tm, dump)
 		if o != expectOffense {
-			t.Errorf("%s offenseExpected=%v offenseFound=%v", f.Name(), expectOffense, o)
-		}
-		if annotation != string(bufResult) {
-			t.Errorf("%s annotationExpected=%s annotationFound=%s", f.Name(), string(bufResult), annotation)
+			t.Errorf("%s offenseExpected=%v offenseFound=%v annotation='%s'", f.Name(), expectOffense, o, annotation)
 		}
 	}
 }
