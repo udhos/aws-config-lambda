@@ -1,5 +1,7 @@
 # aws-config-lambda
 
+aws-config-lambda: Lambda function in Go for detecting configuration drift in AWS Config Rules.
+
 ## Scripts
 
 Build and deploy lambda function:
