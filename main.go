@@ -109,17 +109,57 @@ func Handler(ctx context.Context, configEvent events.ConfigEvent) (out Out, err 
 
 	item, foundItem := invokingEvent["configurationItem"]
 	if !foundItem {
-		err = fmt.Errorf("'configurationItem' not found in InvokingEvent=%v", invokingEvent)
-		out.Str = err.Error()
-		fmt.Println(out.Str)
-		return
+		fmt.Printf("'configurationItem' not found in InvokingEvent=%v\n", invokingEvent)
+
+		summary, foundSummary := invokingEvent["configurationItemSummary"]
+		if !foundSummary {
+			err = fmt.Errorf("'configurationItemSummary' not found in InvokingEvent=%v", invokingEvent)
+			out.Str = err.Error()
+			fmt.Println(out.Str)
+			return
+		}
+
+		summ, summMap := summary.(map[string]interface{})
+		if !summMap {
+			err = fmt.Errorf("configurationItemSummary is not a map: %v", summary)
+			out.Str = err.Error()
+			fmt.Println(out.Str)
+			return
+		}
+
+		resourceType := mapString(summ, "resourceType")
+		resourceId := mapString(summ, "resourceId")
+
+		itemHistory, errHistory := getHistory(clientConf.config, resourceType, resourceId)
+		if errHistory != nil {
+			err = fmt.Errorf("getHistory: %v", errHistory)
+			out.Str = err.Error()
+			fmt.Println(out.Str)
+			return
+		}
+
+		itemBuf, errMarshal := json.Marshal(itemHistory)
+		if errMarshal != nil {
+			err = fmt.Errorf("history json marshal: %v", errMarshal)
+			out.Str = err.Error()
+			fmt.Println(out.Str)
+			return
+		}
+
+		item = map[string]interface{}{}
+		if errJson := json.Unmarshal(itemBuf, &item); errJson != nil {
+			err = fmt.Errorf("history json: %v", errJson)
+			out.Str = err.Error()
+			fmt.Println(out.Str)
+			return
+		}
 	}
 
 	// Decode configuration item
 
 	configItem, itemMap := item.(map[string]interface{})
 	if !itemMap {
-		err = fmt.Errorf("configurationItem not a map")
+		err = fmt.Errorf("configurationItem not a map: %v", item)
 		out.Str = err.Error()
 		fmt.Println(out.Str)
 		return
@@ -184,6 +224,31 @@ func Handler(ctx context.Context, configEvent events.ConfigEvent) (out Out, err 
 	}
 
 	return
+}
+
+func getHistory(configClient *configservice.Client, resourceType, resourceId string) (configservice.ConfigurationItem, error) {
+
+	one := int64(1)
+
+	params := configservice.GetResourceConfigHistoryInput{
+		Limit:        &one,
+		ResourceId:   &resourceId,
+		ResourceType: configservice.ResourceType(resourceType),
+	}
+
+	req := configClient.GetResourceConfigHistoryRequest(&params)
+	resp, errHistory := req.Send(context.TODO())
+	if errHistory == nil {
+		fmt.Println("ResourceConfigHistory ok: ", resp)
+	} else {
+		fmt.Println("ResourceConfigHistory error: ", errHistory)
+	}
+
+	if len(resp.ConfigurationItems) < 1 {
+		return configservice.ConfigurationItem{}, fmt.Errorf("ResourceConfigHistory: no config items")
+	}
+
+	return resp.ConfigurationItems[0], errHistory
 }
 
 func sendSns(snsClient *sns.Client, ruleName, resourceType, resourceId, annotation, topicArn string, compliance configservice.ComplianceType) {
