@@ -324,7 +324,9 @@ func eval(s3Client *s3.Client, configItem map[string]interface{}, bucket, resour
 
 func findOffenseMap(path string, item, target map[string]interface{}, dump bool) (bool, string) {
 
-	if dump {
+	verbose := false
+
+	if verbose {
 		keys := []string{}
 		for k := range target {
 			keys = append(keys, k)
@@ -344,18 +346,18 @@ LOOP:
 		child := path + "." + tk
 
 		key++
-		if dump {
+		if verbose {
 			fmt.Printf("findOffenseMap: path=%s %d/%d\n", child, key, len(target))
 		}
 
 		// encoded?
 		tvj, tvString := tv.(string)
-		if dump {
+		if verbose {
 			fmt.Printf("findOffenseMap: path=%s target_value_is_string=%v\n", child, tvString)
 		}
 		if tvString {
 			isJ := isJSON(tvj)
-			if dump {
+			if verbose {
 				fmt.Printf("findOffenseMap: path=%s target_value_is_json=%v\n", child, isJ)
 			}
 			if isJ {
@@ -377,7 +379,7 @@ LOOP:
 
 		// map?
 		tvm, tvMap := tv.(map[string]interface{})
-		if dump {
+		if verbose {
 			fmt.Printf("findOffenseMap: path=%s target_value_is_map=%v\n", child, tvMap)
 		}
 		if tvMap {
@@ -393,7 +395,7 @@ LOOP:
 
 		// slice?
 		tvSlice, tvIsSlice := tv.([]interface{})
-		if dump {
+		if verbose {
 			fmt.Printf("findOffenseMap: path=%s target_value_is_slice=%v\n", child, tvIsSlice)
 		}
 		if tvIsSlice {
@@ -407,7 +409,7 @@ LOOP:
 			continue LOOP // no offense found
 		}
 
-		if dump {
+		if verbose {
 			fmt.Printf("findOffenseMap: path=%s target_value_is_scalar\n", child)
 		}
 
