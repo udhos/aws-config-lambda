@@ -599,9 +599,18 @@ func sendEval(config *configservice.Client, resultToken, resourceType, resourceI
 
 func fetch(client *s3.Client, bucket, resourceId string) (map[string]interface{}, error) {
 
+	var key string
+
+	list := strings.SplitN(bucket, "/", 2)
+	if len(list) < 2 {
+		key = resourceId
+	} else {
+		key = list[1] + "/" + resourceId
+	}
+
 	params := &s3.GetObjectInput{
-		Bucket: aws.String(bucket),     // Required
-		Key:    aws.String(resourceId), // Required
+		Bucket: aws.String(list[0]), // Required
+		Key:    aws.String(key),     // Required
 	}
 
 	req := client.GetObjectRequest(params)
