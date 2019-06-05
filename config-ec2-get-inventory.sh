@@ -22,6 +22,7 @@ resource_id=$1
 
 exclude() {
 	cat <<__EOF__
+.version
 .accountId
 .relationships[].relationshipName
 __EOF__
