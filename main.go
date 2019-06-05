@@ -150,6 +150,12 @@ func Handler(ctx context.Context, configEvent events.ConfigEvent) (out Out, err 
 		item = itemMap
 	}
 
+	if foundItem {
+		fmt.Println("config item from: event")
+	} else {
+		fmt.Println("config item from: service config history")
+	}
+
 	// Decode configuration item
 
 	configItem, itemMap := item.(map[string]interface{})
