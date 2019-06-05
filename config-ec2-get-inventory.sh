@@ -23,6 +23,7 @@ resource_id=$1
 exclude() {
 	cat <<__EOF__
 .version
+.configurationItemMD5Hash
 .arn
 .configurationItemCaptureTime
 .accountId

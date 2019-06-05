@@ -35,9 +35,6 @@ __EOF__
 
 filter() {
 	# extract only first item
-	# exclude field 'version'
-	# exclude field 'configurationItemMD5Hash'
-	# exclude field 'arn'
 	local exc=$(exclude | paste -s -d ,)
 	jq -r '.configurationItems[0]' | jq -r "del($exc)"
 }
