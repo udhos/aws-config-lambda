@@ -22,14 +22,15 @@ resource_id=$1
 
 exclude() {
 	cat <<__EOF__
+.accountId
+.relationships[].relationshipName
 __EOF__
 }
 
 filter() {
 	# extract only first item
 	local exc=$(exclude | paste -s -d ,)
-	#jq -r '.configurationItems[0]' | jq -r "del($exc)"
-	jq -r '.configurationItems[0]'
+	jq -r '.configurationItems[0]' | jq -r "del($exc)"
 }
 
 out=$resource_id.inventory
