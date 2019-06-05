@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -138,21 +139,15 @@ func Handler(ctx context.Context, configEvent events.ConfigEvent) (out Out, err 
 			return
 		}
 
-		itemBuf, errMarshal := json.Marshal(itemHistory)
-		if errMarshal != nil {
-			err = fmt.Errorf("history json marshal: %v", errMarshal)
+		itemMap, errToMap := itemToMap(itemHistory)
+		if errToMap != nil {
+			err = fmt.Errorf("history item to map: %v", errToMap)
 			out.Str = err.Error()
 			fmt.Println(out.Str)
 			return
 		}
 
-		item = map[string]interface{}{}
-		if errJson := json.Unmarshal(itemBuf, &item); errJson != nil {
-			err = fmt.Errorf("history json: %v", errJson)
-			out.Str = err.Error()
-			fmt.Println(out.Str)
-			return
-		}
+		item = itemMap
 	}
 
 	// Decode configuration item
@@ -224,6 +219,30 @@ func Handler(ctx context.Context, configEvent events.ConfigEvent) (out Out, err 
 	}
 
 	return
+}
+
+func itemToMap(item configservice.ConfigurationItem) (map[string]interface{}, error) {
+
+	itemBuf, errMarshal := json.Marshal(item)
+	if errMarshal != nil {
+		return nil, fmt.Errorf("itemToMap marshal: %v", errMarshal)
+	}
+
+	itemMap := map[string]interface{}{}
+	if errJson := json.Unmarshal(itemBuf, &itemMap); errJson != nil {
+		return nil, fmt.Errorf("itemToMap unmarshal: %v", errJson)
+	}
+
+	// .FieldName => .fieldName
+	mapLow := map[string]interface{}{}
+	for k, v := range itemMap {
+		buf := []byte(k)
+		buf[0] = byte(unicode.ToLower(rune(buf[0]))) // low case first letter
+		kk := string(buf)
+		mapLow[kk] = v
+	}
+
+	return mapLow, nil
 }
 
 func getHistory(configClient *configservice.Client, resourceType, resourceId string) (configservice.ConfigurationItem, error) {
