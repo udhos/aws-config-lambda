@@ -370,7 +370,7 @@ LOOP:
 				}
 			} else {
 				// scalar?
-				if offense, annotation := findOffenseScalar(child, iv, tvj, dump); offense {
+				if offense, annotation := findOffenseScalar(child, iv, tvj, verbose); offense {
 					return true, annotation
 				}
 			}
@@ -414,7 +414,7 @@ LOOP:
 		}
 
 		// scalar?
-		if offense, annotation := findOffenseScalar(child, iv, tv, dump); offense {
+		if offense, annotation := findOffenseScalar(child, iv, tv, verbose); offense {
 			return true, annotation
 		}
 	}
