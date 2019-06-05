@@ -239,16 +239,50 @@ func itemToMap(item configservice.ConfigurationItem) (map[string]interface{}, er
 		return nil, fmt.Errorf("itemToMap unmarshal: %v", errJson)
 	}
 
-	// .FieldName => .fieldName
-	mapLow := map[string]interface{}{}
-	for k, v := range itemMap {
-		buf := []byte(k)
-		buf[0] = byte(unicode.ToLower(rune(buf[0]))) // low case first letter
-		kk := string(buf)
-		mapLow[kk] = v
-	}
+	mapLow := mapKeyDownRecursive(itemMap)
 
 	return mapLow, nil
+}
+
+func mapKeyDownRecursive(m map[string]interface{}) map[string]interface{} {
+	mapLow := map[string]interface{}{}
+	for k, v := range m {
+		buf := []byte(k)
+		buf[0] = byte(unicode.ToLower(rune(buf[0]))) // low case key first letter
+		kk := string(buf)
+
+		if vv, isMap := v.(map[string]interface{}); isMap {
+			mapLow[kk] = mapKeyDownRecursive(vv)
+			continue
+		}
+
+		if vv, isSlice := v.([]interface{}); isSlice {
+			mapLow[kk] = mapKeyDownRecursiveSlice(vv)
+			continue
+		}
+
+		mapLow[kk] = v
+	}
+	return mapLow
+}
+
+func mapKeyDownRecursiveSlice(s []interface{}) []interface{} {
+	sliceLow := []interface{}{}
+	for _, v := range s {
+
+		if vv, isMap := v.(map[string]interface{}); isMap {
+			sliceLow = append(sliceLow, mapKeyDownRecursive(vv))
+			continue
+		}
+
+		if vv, isSlice := v.([]interface{}); isSlice {
+			sliceLow = append(sliceLow, mapKeyDownRecursiveSlice(vv))
+			continue
+		}
+
+		sliceLow = append(sliceLow, v)
+	}
+	return sliceLow
 }
 
 func getHistory(configClient *configservice.Client, resourceType, resourceId string) (configservice.ConfigurationItem, error) {

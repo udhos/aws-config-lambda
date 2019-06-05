@@ -138,3 +138,46 @@ func TestOffenseData(t *testing.T) {
 		}
 	}
 }
+
+func TestOffenseMapKeyDown(t *testing.T) {
+
+	s := `
+{
+	"AB": "CD",
+	"EF": {
+		"GH": "IJ",
+		"KL": [
+			"MN",
+			[
+				"OP",
+				{
+					"QR": {
+						"ST": "UV"
+					}
+				}
+			]
+		]
+	}
+}
+`
+
+	expected := `{"aB":"CD","eF":{"gH":"IJ","kL":["MN",["OP",{"qR":{"sT":"UV"}}]]}}`
+
+	m := map[string]interface{}{}
+	if err := json.Unmarshal([]byte(s), &m); err != nil {
+		t.Errorf("unmarshal: %v", err)
+	}
+
+	mm := mapKeyDownRecursive(m)
+
+	buf, err := json.Marshal(mm)
+	if err != nil {
+		t.Errorf("marshal: %v", err)
+	}
+
+	result := string(buf)
+
+	if result != expected {
+		t.Errorf("mismatch: expected:%s result:%s", expected, result)
+	}
+}
