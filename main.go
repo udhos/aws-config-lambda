@@ -272,17 +272,17 @@ func getHistory(configClient *configservice.Client, resourceType, resourceId str
 
 func sendSns(snsClient *sns.Client, ruleName, resourceType, resourceId, annotation, topicArn string, compliance configservice.ComplianceType) {
 
-	var ann *string
-
-	if annotation != "" {
-		ann = &annotation
+	if annotation == "" {
+		annotation = "[empty annotation]"
 	}
 
 	sub := fmt.Sprintf("Non-compliance: %s %s %s", ruleName, resourceType, resourceId)
 
+	fmt.Printf("SNS subject: [%s]\n", sub)
+
 	params := sns.PublishInput{
 		Subject:  &sub,
-		Message:  ann,
+		Message:  &annotation,
 		TopicArn: &topicArn,
 	}
 
