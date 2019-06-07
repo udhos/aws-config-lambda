@@ -2,11 +2,18 @@
 
 gofmt -s -w .
 go fix .
+go vet .
+
+if ! hash shadow; then
+	go install golang.org/x/tools/go/analysis/passes/shadow/cmd/shadow
+	tidy=1
+fi
+
 go vet -vettool="$(which shadow)" .
 
 if ! hash gosec; then
-	go_get_gosec=1
-	go get github.com/securego/gosec/cmd/gosec
+	go install github.com/securego/gosec/cmd/gosec
+	tidy=1
 fi
 
 gosec .
@@ -18,4 +25,4 @@ CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o main main.go
 
 zip main.zip main
 
-[ -n "$go_get_gosec" ] && go mod tidy
+[ -n "$tidy" ] && go mod tidy
