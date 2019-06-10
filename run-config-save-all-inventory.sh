@@ -17,8 +17,8 @@ if [ $# -lt 1 ]; then
 fi
 
 [ -x ./ec2-list-by-tag.sh ] || die missing script: ./ec2-list-by-tag.sh
-[ -x ./config-ec2-get.sh ] || die missing script: ./config-ec2-get.sh
-[ -x ./s3-upload.sh ] || die missing script: ./s3-upload.sh
+[ -x ./config-ec2-get-inventory.sh ] || die missing script: ./config-ec2-get-inventory.sh
+[ -x ./s3-upload-inventory.sh ] || die missing script: ./s3-upload-inventory.sh
 
 bucket=$1
 
