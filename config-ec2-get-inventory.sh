@@ -7,6 +7,7 @@ msg() {
 }
 
 die() {
+	[ -f "$tmp" ] && rm "$tmp"
 	msg $@
 	exit 1
 }
@@ -39,8 +40,13 @@ filter() {
 }
 
 out=$resource_id.inventory
+tmp=$out.tmp
 
-aws configservice get-resource-config-history --max-items 1 --resource-type AWS::SSM::ManagedInstanceInventory --resource-id $resource_id | filter > $out || die failure fetching resource
+aws configservice get-resource-config-history --max-items 1 --resource-type AWS::SSM::ManagedInstanceInventory --resource-id $resource_id > $tmp || die failure fetching resource
+
+filter < $tmp > $out
+
+rm $tmp
 
 msg saved resource as: $out
 
