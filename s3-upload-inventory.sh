@@ -19,7 +19,17 @@ fi
 resource_id=$1
 bucket=$2
 
-[ -f $resource_id ] || die "missing file: resource-id=[$resource_id]"
+resource_file="$resource_id.inventory"
 
-aws s3 cp $resource_id.inventory s3://$bucket/$resource_id
+[ -f $resource_file ] || die "missing resource file: [$resource_file]"
+
+if echo $bucket | grep -q /$; then
+	cmd="aws s3 cp $resource_file s3://$bucket$resource_id"
+else
+	cmd="aws s3 cp $resource_file s3://$bucket/$resource_id"
+fi
+
+echo $cmd
+
+$cmd
 
