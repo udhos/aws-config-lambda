@@ -48,11 +48,11 @@ filter() {
 
 # remove fields from .configuration (json encoded as string)
 filter_config() {
-	local orig=orig
+	local orig=$(mktemp -t filter_config_orig.XXXXXXXXXX)
 	cat >$orig
 	# extract only first item
 	local exc=$(exclude_config | paste -s -d ,)
-	local t=tmp
+	local t=$(mktemp -t filter_config_tmp.XXXXXXXXXX)
 	jq -r ".configuration | fromjson | del($exc) | tostring" < $orig > $t
 	jq -r ".configuration = \"$(sed -e 's/"/\\\"/g' < $t)\"" < $orig
 	rm $orig $t
