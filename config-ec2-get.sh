@@ -6,9 +6,13 @@ msg() {
 	echo >&2 $me: $@
 }
 
-die() {
+cleanup() {
 	[ -f "$tmp" ] && rm "$tmp"
+}
+
+die() {
 	msg $@
+	cleanup
 	exit 1
 }
 
@@ -50,7 +54,6 @@ filter() {
 filter_config() {
 	local orig=$(mktemp -t filter_config_orig.XXXXXXXXXX)
 	cat >$orig
-	# extract only first item
 	local exc=$(exclude_config | paste -s -d ,)
 	local t=$(mktemp -t filter_config_tmp.XXXXXXXXXX)
 	jq -r ".configuration | fromjson | del($exc) | tostring" < $orig > $t
@@ -63,7 +66,7 @@ tmp=$resource_id.tmp
 aws configservice get-resource-config-history --max-items 1 --resource-type AWS::EC2::Instance --resource-id $resource_id > $tmp || die failure fetching resource
 
 filter < $tmp | filter_config > $resource_id
-#filter < $tmp > $resource_id
+
+cleanup
 
 msg saved resource as: $resource_id
-
