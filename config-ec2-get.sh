@@ -7,6 +7,7 @@ msg() {
 }
 
 die() {
+	[ -f "$tmp" ] && rm "$tmp"
 	msg $@
 	exit 1
 }
@@ -33,13 +34,36 @@ exclude() {
 __EOF__
 }
 
+exclude_config() {
+	cat <<__EOF__
+.networkInterfaces[].interfaceType
+__EOF__
+}
+
 filter() {
 	# extract only first item
 	local exc=$(exclude | paste -s -d ,)
 	jq -r '.configurationItems[0]' | jq -r "del($exc)"
 }
 
-aws configservice get-resource-config-history --max-items 1 --resource-type AWS::EC2::Instance --resource-id $resource_id | filter > $resource_id || die failure fetching resource
+# remove fields from .configuration (json encoded as string)
+filter_config() {
+	local orig=orig
+	cat >$orig
+	# extract only first item
+	local exc=$(exclude_config | paste -s -d ,)
+	local t=tmp
+	jq -r ".configuration | fromjson | del($exc) | tostring" < $orig > $t
+	jq -r ".configuration = \"$(sed -e 's/"/\\\"/g' < $t)\"" < $orig
+	rm $orig $t
+}
+
+tmp=$resource_id.tmp
+
+aws configservice get-resource-config-history --max-items 1 --resource-type AWS::EC2::Instance --resource-id $resource_id > $tmp || die failure fetching resource
+
+filter < $tmp | filter_config > $resource_id
+#filter < $tmp > $resource_id
 
 msg saved resource as: $resource_id
 
