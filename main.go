@@ -476,7 +476,7 @@ func offenseScalar(path string, item, target interface{}) (bool, string) {
 	}
 	ivs, errIv := scalarString(item)
 	if errIv != nil {
-		return true, fmt.Sprintf("path=[%s] item value: %v", path, errIv)
+		return true, fmt.Sprintf("path=[%s] targetScalarValue=%v item value: %v", path, tvs, errIv)
 	}
 	if tvs != ivs {
 		if matchNumber(path, tvs, ivs) {
